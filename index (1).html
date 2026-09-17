@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostgreSQL · Главы 2–3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7FA;
+    --surface:#FFFFFF;
+    --surface-alt:#EDF2F6;
+    --border:#DCE3EA;
+    --text:#17222C;
+    --text-muted:#5B6B7A;
+    --accent:#2D6A8F;
+    --accent-soft:#DCEAF2;
+    --accent-2:#3F8F6F;
+    --accent-2-soft:#DFF0E7;
+    --danger:#C24B4B;
+    --danger-soft:#F7E3E1;
+    --code-bg:#10202E;
+    --code-text:#CFE9DE;
+    --code-comment:#6F8A9A;
+    --code-keyword:#7EC8E3;
+    --code-string:#F2C078;
+    --shadow: 0 1px 2px rgba(23,34,44,0.04), 0 6px 20px rgba(23,34,44,0.06);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) {
+      --bg:#0F171F; --surface:#16212B; --surface-alt:#1C2932; --border:#2A3A45;
+      --text:#E7EEF3; --text-muted:#93A6B3; --accent:#7BC0E6; --accent-soft:#1D3441;
+      --accent-2:#6FCF9A; --accent-2-soft:#1B3329; --danger:#E58B8B; --danger-soft:#3A2426;
+      --code-bg:#0A1119; --code-text:#CFE9DE;
+      --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+      --bg:#0F171F; --surface:#16212B; --surface-alt:#1C2932; --border:#2A3A45;
+      --text:#E7EEF3; --text-muted:#93A6B3; --accent:#7BC0E6; --accent-soft:#1D3441;
+      --accent-2:#6FCF9A; --accent-2-soft:#1B3329; --danger:#E58B8B; --danger-soft:#3A2426;
+      --code-bg:#0A1119; --code-text:#CFE9DE;
+      --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{
+    font-family:'Space Grotesk','Inter',sans-serif; font-weight:600;
+    margin:0 0 .5em 0; color:var(--text); letter-spacing:-0.01em;
+  }
+  p{margin:0 0 1em 0;color:var(--text);}
+  code, .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:var(--accent);}
+  ::selection{background:var(--accent-soft);}
+  button{font-family:inherit;cursor:pointer;}
+  button:focus-visible, a:focus-visible, .opt:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .app{display:flex;min-height:100vh;}
+  .sidebar{
+    width:250px;flex:none; background:var(--surface); border-right:1px solid var(--border);
+    padding:22px 16px; position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:0 6px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(155deg, var(--accent), #1B4C68);
+    display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;
+  }
+  .brand-text{line-height:1.25;}
+  .brand-text b{display:block;font-family:'Space Grotesk';font-size:15px;}
+  .brand-text span{font-size:12px;color:var(--text-muted);}
+
+  .lang-switch{display:flex;gap:4px;margin-bottom:18px;background:var(--surface-alt);border-radius:9px;padding:3px;}
+  .lang-btn{
+    flex:1;border:none;background:none;padding:6px 4px;border-radius:7px;
+    font-size:12.5px;font-weight:600;color:var(--text-muted);
+  }
+  .lang-btn.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow);}
+
+  .nav-group{margin-bottom:6px;}
+  .nav-btn{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:none;padding:9px 10px;border-radius:8px;
+    color:var(--text);font-size:14.5px;font-weight:500;margin-bottom:2px;
+  }
+  .nav-btn:hover{background:var(--surface-alt);}
+  .nav-btn.active{background:var(--accent-soft);color:var(--accent);}
+  .nav-btn .num{font-family:'JetBrains Mono';font-size:11.5px;color:var(--text-muted);width:20px;flex:none;}
+  .nav-btn.active .num{color:var(--accent);}
+  .sub-nav{padding-left:30px;margin:2px 0 10px;border-left:1px solid var(--border);margin-left:19px;}
+  .sub-nav a{display:block;font-size:13px;color:var(--text-muted);text-decoration:none;padding:5px 0 5px 12px;}
+  .sub-nav a:hover{color:var(--accent);}
+
+  .theme-toggle{
+    margin-top:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+    background:var(--surface-alt);color:var(--text-muted);font-size:12.5px;
+    width:100%;display:flex;justify-content:space-between;align-items:center;
+  }
+
+  .main{flex:1;min-width:0;padding:38px 44px 80px;max-width:900px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .hero{display:flex;gap:38px;align-items:center;margin-bottom:40px;flex-wrap:wrap;}
+  .hero-copy{flex:1;min-width:280px;}
+  .eyebrow-line{display:flex;align-items:center;gap:8px;margin-bottom:14px;color:var(--text-muted);font-size:13.5px;}
+  .eyebrow-line .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-2);}
+  .hero h1{font-size:clamp(1.7rem,3.2vw,2.5rem);line-height:1.18;max-width:16ch;}
+  .hero p.lead{font-size:16.5px;color:var(--text-muted);max-width:46ch;}
+  .hero-cta{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  .btn{border-radius:8px;padding:10px 18px;font-size:14.5px;font-weight:600;border:1px solid transparent;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-ghost{background:none;border:1px solid var(--border);color:var(--text);}
+  .btn-ghost:hover{background:var(--surface-alt);}
+
+  .terminal{flex:none;width:400px;max-width:100%;background:var(--code-bg);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+  .term-bar{display:flex;gap:6px;padding:10px 12px;background:rgba(255,255,255,0.04);}
+  .term-bar span{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .term-bar span:nth-child(1){background:#EA6A5D;}
+  .term-bar span:nth-child(2){background:#F5BD4F;}
+  .term-bar span:nth-child(3){background:#61C454;}
+  .term-body{padding:16px 18px 20px;font-family:'JetBrains Mono';font-size:12.5px;color:var(--code-text);}
+  .term-body .prompt{color:#8FB2C4;}
+  .term-body .kw{color:var(--code-keyword);}
+  .term-body .str{color:var(--code-string);}
+  .term-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;}
+  .term-table th,.term-table td{padding:4px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);}
+  .term-table th{color:#8FB2C4;font-weight:500;}
+  .term-note{color:var(--code-comment);margin-top:8px;}
+
+  .schema{display:flex;gap:18px;margin:28px 0 8px;flex-wrap:wrap;}
+  .schema-table{flex:1;min-width:220px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  .schema-head{background:var(--surface-alt);padding:10px 14px;font-family:'JetBrains Mono';font-weight:600;font-size:13.5px;border-bottom:1px solid var(--border);}
+  .schema-row{display:flex;justify-content:space-between;padding:7px 14px;font-size:13px;border-bottom:1px solid var(--border);}
+  .schema-row:last-child{border-bottom:none;}
+  .schema-row .col-name{font-family:'JetBrains Mono';}
+  .schema-row .col-type{color:var(--text-muted);font-size:12px;}
+  .tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;}
+  .tag-pk{background:var(--accent-soft);color:var(--accent);}
+  .tag-fk{background:var(--accent-2-soft);color:var(--accent-2);}
+
+  .section-intro{margin-bottom:26px;}
+  .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;}
+  .pill{font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);text-decoration:none;background:var(--surface);}
+  .pill:hover{border-color:var(--accent);color:var(--accent);}
+
+  .topic{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 28px;margin-bottom:22px;scroll-margin-top:14px;}
+  .topic-kicker{font-family:'JetBrains Mono';font-size:12px;color:var(--accent);margin-bottom:6px;}
+  .topic h3{font-size:1.22rem;}
+  .topic p{color:var(--text-muted);font-size:15px;}
+  .topic p strong{color:var(--text);font-weight:600;}
+
+  pre{background:var(--code-bg);color:var(--code-text);border-radius:9px;padding:14px 16px;overflow-x:auto;font-family:'JetBrains Mono';font-size:13px;line-height:1.55;margin:14px 0;}
+  pre .kw{color:var(--code-keyword);}
+  pre .str{color:var(--code-string);}
+  pre .cm{color:var(--code-comment);}
+
+  .data-table-wrap{overflow-x:auto;margin:14px 0;}
+  table.data{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface-alt);border-radius:8px;overflow:hidden;}
+  table.data th, table.data td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+  table.data th{background:var(--surface);font-weight:600;font-size:12.5px;color:var(--text-muted);}
+  table.data tr:last-child td{border-bottom:none;}
+
+  .note{display:flex;gap:10px;background:var(--accent-soft);border-radius:9px;padding:12px 14px;font-size:13.5px;color:var(--text);margin-top:14px;}
+  .note.warn{background:var(--danger-soft);}
+  .note .ic{flex:none;}
+
+  .quiz-shell{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:640px;}
+  .quiz-progress{height:6px;background:var(--surface-alt);border-radius:99px;overflow:hidden;margin-bottom:22px;}
+  .quiz-progress-bar{height:100%;background:var(--accent-2);border-radius:99px;transition:width .3s ease;}
+  .quiz-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-muted);margin-bottom:8px;font-family:'JetBrains Mono';}
+  .quiz-q{font-size:18px;font-weight:600;margin:10px 0 20px;font-family:'Space Grotesk';}
+  .quiz-code{margin:-6px 0 18px;}
+  .opt{display:block;width:100%;text-align:left;background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:10px;font-size:14.5px;color:var(--text);}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:var(--accent-2-soft);border-color:var(--accent-2);}
+  .opt.wrong{background:var(--danger-soft);border-color:var(--danger);}
+  .opt:disabled{cursor:default;}
+  .quiz-explain{font-size:13.5px;color:var(--text-muted);background:var(--surface-alt);border-radius:9px;padding:12px 14px;margin-top:6px;display:none;}
+  .quiz-explain.show{display:block;}
+  .quiz-next{margin-top:18px;display:none;}
+  .quiz-next.show{display:inline-flex;}
+  .quiz-result{text-align:center;padding:20px 0;}
+  .quiz-result .score{font-family:'Space Grotesk';font-size:42px;font-weight:700;color:var(--accent);}
+  .quiz-result p{color:var(--text-muted);}
+  .quiz-start{text-align:center;padding:10px 0 4px;}
+
+  .footer-note{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12.5px;}
+
+  .mobile-topbar{display:none;}
+  .mobile-lang{display:none;}
+  @media (max-width: 880px){
+    .sidebar{display:none;}
+    .mobile-lang{
+      display:flex;gap:6px;padding:10px 14px 0;background:var(--surface);
+    }
+    .mobile-lang button{
+      flex:1;border:1px solid var(--border);background:var(--surface-alt);border-radius:8px;
+      padding:6px 4px;font-size:12px;font-weight:600;color:var(--text-muted);
+    }
+    .mobile-lang button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .mobile-topbar{
+      display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;z-index:20;
+      background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px 12px;
+    }
+    .mobile-topbar button{flex:none;background:var(--surface-alt);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:13px;color:var(--text);}
+    .mobile-topbar button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .main{padding:26px 18px 60px;}
+    .hero{flex-direction:column-reverse;}
+    .terminal{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="mobile-lang" id="mobileLang"></div>
+<div class="mobile-topbar" id="mobileTabs"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">🐘</div>
+      <div class="brand-text">
+        <b>PostgreSQL</b>
+        <span id="brandSubtitle"></span>
+      </div>
+    </div>
+
+    <div class="lang-switch" id="langSwitch"></div>
+
+    <div class="nav-group">
+      <button class="nav-btn" data-view="home"><span class="num">·</span><span id="navHome"></span></button>
+    </div>
+
+    <div class="nav-group">
+      <button class="nav-btn" data-view="ch2"><span class="num">2</span><span id="navCh2"></span></button>
+      <div class="sub-nav" id="subNav2"></div>
+    </div>
+
+    <div class="nav-group">
+      <button class="nav-btn" data-view="ch3"><span class="num">3</span><span id="navCh3"></span></button>
+      <div class="sub-nav" id="subNav3"></div>
+    </div>
+
+    <div class="nav-group">
+      <button class="nav-btn" data-view="ch4"><span class="num">4</span><span id="navCh4"></span></button>
+      <div class="sub-nav" id="subNav4"></div>
+    </div>
+
+    <div class="nav-group">
+      <button class="nav-btn" data-view="quiz"><span class="num">✓</span><span id="navQuiz"></span></button>
+    </div>
+
+    <button class="theme-toggle" id="themeToggle">
+      <span id="themeLabel">—</span>
+      <span>⏾</span>
+    </button>
+  </aside>
+
+  <main class="main">
+
+    <!-- HOME -->
+    <section class="view active" id="view-home">
+      <div class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow-line"><span class="dot"></span> <span id="heroEyebrow"></span></div>
+          <h1 id="heroH1"></h1>
+          <p class="lead" id="heroLead"></p>
+          <div class="hero-cta">
+            <button class="btn btn-primary" data-goto="ch2" id="ctaPrimary"></button>
+            <button class="btn btn-ghost" data-goto="quiz" id="ctaGhost"></button>
+          </div>
+        </div>
+        <div class="terminal">
+          <div class="term-bar"><span></span><span></span><span></span></div>
+          <div class="term-body">
+            <div><span class="prompt">company=#</span> <span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees<br>&nbsp;&nbsp;<span class="kw">WHERE</span> salary &gt; <span class="str">70000</span>;</div>
+            <table class="term-table">
+              <tr><th>name</th><th>salary</th></tr>
+              <tr><td>Иванов Иван</td><td>90000</td></tr>
+              <tr><td>Петров Петр</td><td>75000</td></tr>
+              <tr><td>Сидорова Анна</td><td>110000</td></tr>
+            </table>
+            <div class="term-note">(3 rows)</div>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="schemaTitle" style="margin-bottom:6px;"></h2>
+      <p id="schemaDesc" style="color:var(--text-muted);margin-bottom:0;"></p>
+      <div class="schema">
+        <div class="schema-table">
+          <div class="schema-head">departments</div>
+          <div class="schema-row"><span class="col-name">id <span class="tag tag-pk">PK</span></span><span class="col-type">serial</span></div>
+          <div class="schema-row"><span class="col-name">name</span><span class="col-type">varchar(50)</span></div>
+        </div>
+        <div class="schema-table">
+          <div class="schema-head">employees</div>
+          <div class="schema-row"><span class="col-name">id <span class="tag tag-pk">PK</span></span><span class="col-type">serial</span></div>
+          <div class="schema-row"><span class="col-name">name</span><span class="col-type">varchar(50)</span></div>
+          <div class="schema-row"><span class="col-name">age</span><span class="col-type">integer</span></div>
+          <div class="schema-row"><span class="col-name">salary</span><span class="col-type">numeric(10,2)</span></div>
+          <div class="schema-row"><span class="col-name">department_id <span class="tag tag-fk">FK</span></span><span class="col-type">integer</span></div>
+          <div class="schema-row"><span class="col-name">hire_date</span><span class="col-type">date</span></div>
+        </div>
+      </div>
+
+      <div class="data-table-wrap" style="margin-top:20px;">
+        <table class="data">
+          <tr><th>id</th><th>name</th><th>age</th><th>salary</th><th>department_id</th><th>hire_date</th></tr>
+          <tr><td>1</td><td>Иванов Иван</td><td>35</td><td>90000.00</td><td>1</td><td>2019-05-12</td></tr>
+          <tr><td>2</td><td>Петров Петр</td><td>28</td><td>75000.00</td><td>1</td><td>2021-03-01</td></tr>
+          <tr><td>3</td><td>Сидорова Анна</td><td>42</td><td>110000.00</td><td>2</td><td>2015-07-23</td></tr>
+          <tr><td>4</td><td>Кузнецова Мария</td><td>31</td><td>68000.00</td><td>3</td><td>2020-11-10</td></tr>
+          <tr><td>5</td><td>Смирнов Олег</td><td>25</td><td>60000.00</td><td>2</td><td>2022-01-15</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- CHAPTER 2 -->
+    <section class="view" id="view-ch2">
+      <div class="section-intro">
+        <h2 id="ch2Title"></h2>
+        <p id="ch2Desc" style="color:var(--text-muted)"></p>
+      </div>
+      <div class="pill-row" id="ch2Pills"></div>
+      <div id="ch2Topics"></div>
+    </section>
+
+    <!-- CHAPTER 3 -->
+    <section class="view" id="view-ch3">
+      <div class="section-intro">
+        <h2 id="ch3Title"></h2>
+        <p id="ch3Desc" style="color:var(--text-muted)"></p>
+      </div>
+      <div class="pill-row" id="ch3Pills"></div>
+      <div id="ch3Topics"></div>
+    </section>
+
+    <!-- CHAPTER 4 -->
+    <section class="view" id="view-ch4">
+      <div class="section-intro">
+        <h2 id="ch4Title"></h2>
+        <p id="ch4Desc" style="color:var(--text-muted)"></p>
+      </div>
+      <div class="pill-row" id="ch4Pills"></div>
+      <div id="ch4Topics"></div>
+    </section>
+
+    <!-- QUIZ -->
+    <section class="view" id="view-quiz">
+      <div class="section-intro">
+        <h2 id="quizTitle"></h2>
+        <p id="quizDesc" style="color:var(--text-muted)"></p>
+      </div>
+
+      <div class="quiz-shell">
+        <div id="quizStart" class="quiz-start">
+          <p id="quizIntro" style="font-size:15px;"></p>
+          <button class="btn btn-primary" id="quizBeginBtn"></button>
+          <p id="bestScoreLine" style="margin-top:14px;font-size:12.5px;color:var(--text-muted);"></p>
+        </div>
+
+        <div id="quizPlay" style="display:none;">
+          <div class="quiz-meta"><span id="quizPos"></span><span id="quizScoreLive"></span></div>
+          <div class="quiz-progress"><div class="quiz-progress-bar" id="quizProgressBar" style="width:0%"></div></div>
+          <div class="quiz-q" id="quizQuestion"></div>
+          <pre id="quizCode" class="quiz-code" style="display:none;"></pre>
+          <div id="quizOptions"></div>
+          <div class="quiz-explain" id="quizExplain"></div>
+          <button class="btn btn-primary quiz-next" id="quizNextBtn"></button>
+        </div>
+
+        <div id="quizResult" class="quiz-result" style="display:none;">
+          <div class="score" id="quizFinalScore">0/15</div>
+          <p id="quizFinalMsg"></p>
+          <button class="btn btn-primary" id="quizRetryBtn"></button>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-note" id="footerNote"></div>
+  </main>
+</div>
+
+<script>
+(function(){
+
+/* =========================================================
+   CONTENT / TRANSLATIONS
+   ========================================================= */
+var DATA = {
+ru: {
+  langLabel:'РУС',
+  brandSubtitle:'Главы 2–4 · тренажёр',
+  navHome:'Главная', navCh2:'Структура данных', navCh3:'Операции с данными', navCh4:'Запросы', navQuiz:'Тест (36 вопросов)',
+  sub2:['2.1 Создание и удаление БД','2.2 Создание и удаление таблиц','2.3 Типы данных','2.4 Ограничения','2.5 Внешние ключи','2.6 Изменение таблиц'],
+  sub3:['3.1 INSERT','3.2 SELECT','3.3 WHERE','3.4 UPDATE','3.5 DELETE'],
+  sub4:['4.1 DISTINCT','4.2 ORDER BY','4.3 LIMIT и OFFSET','4.4 Операторы фильтрации','4.5 Агрегатные функции','4.6 Группировка','4.7 Подзапросы'],
+  themeSystem:'Тема: системная', themeLight:'Тема: светлая', themeDark:'Тема: тёмная',
+  heroEyebrow:'На основе metanit.com/sql/postgresql',
+  heroH1:'Главы 2–4, на одной учебной базе',
+  heroLead:'Определение структуры данных, операции над данными и запросы — с общей схемой из двух таблиц, живыми примерами SQL и тестом на 36 вопросов в конце.',
+  ctaPrimary:'Начать с главы 2', ctaGhost:'Сразу к тесту',
+  schemaTitle:'Учебная схема',
+  schemaDesc:'Все примеры на сайте используют одну и ту же базу данных company с двумя таблицами.',
+  ch2Title:'Глава 2. Определение структуры данных',
+  ch2Desc:'Как задать саму форму хранилища: базы данных, таблицы, типы столбцов, ограничения и связи между таблицами.',
+  ch3Title:'Глава 3. Операции с данными',
+  ch3Desc:'Когда структура готова — добавляем, читаем, фильтруем, меняем и удаляем строки. Все примеры на данных из таблицы employees с главной страницы.',
+  ch4Title:'Глава 4. Запросы',
+  ch4Desc:'От простой выборки к сортировке, диапазонам строк, агрегатным функциям, группировке и подзапросам — всё на той же схеме employees и departments.',
+  quizTitle:'Тест по главам 2–4',
+  quizDesc:'36 вопросов на основе материала выше. Сразу видно, где ответ верный, а где нет, с коротким объяснением.',
+  quizIntro:'Готовы проверить, как усвоились структура данных, операции INSERT / SELECT / WHERE / UPDATE / DELETE и запросы из главы 4?',
+  quizBeginBtn:'Начать тест',
+  bestScoreLabel:'Лучший результат', of:'из',
+  quizPosLabel:'Вопрос', correctWord:'верных',
+  nextBtn:'Следующий вопрос →', showResultBtn:'Показать результат →', retryBtn:'Пройти ещё раз',
+  msgPerfect:'Все ответы верные — главы 2–4 усвоены.',
+  msgGood:'Хороший результат, есть пара мест, куда стоит вернуться.',
+  msgRetry:'Стоит перечитать разделы выше и попробовать ещё раз.',
+  footer:'Мини-сайт по мотивам глав «Определение структуры данных», «Операции с данными» и «Запросы» руководства по PostgreSQL на metanit.com. Учебный пример, не официальная документация.',
+  ch2Topics:[
+    {kicker:'2.1', title:'Создание и удаление базы данных', blocks:[
+      {p:'База данных — верхний уровень хранения: внутри неё живут таблицы, схемы и остальные объекты. Создаётся и удаляется командами <strong>CREATE DATABASE</strong> и <strong>DROP DATABASE</strong>, обычно из-под пользователя с правом создавать БД.'},
+      {pre:'<span class="kw">CREATE DATABASE</span> company;\n\n<span class="cm">-- полностью удаляет базу и все данные в ней</span>\n<span class="kw">DROP DATABASE</span> company;'},
+      {note:'warn', text:'DROP DATABASE необратим и не спрашивает подтверждения — перед выполнением стоит убедиться, что подключение сделано не к этой самой базе.'}
+    ]},
+    {kicker:'2.2', title:'Создание и удаление таблиц', blocks:[
+      {p:'Таблица описывается через <strong>CREATE TABLE</strong>: имя и список столбцов с типами. Наша схема — это как раз пример: departments и employees.'},
+      {pre:'<span class="kw">CREATE TABLE</span> departments (\n    id   serial <span class="kw">PRIMARY KEY</span>,\n    name varchar(50) <span class="kw">NOT NULL</span>\n);\n\n<span class="kw">CREATE TABLE</span> employees (\n    id            serial <span class="kw">PRIMARY KEY</span>,\n    name          varchar(50) <span class="kw">NOT NULL</span>,\n    age           integer,\n    salary        numeric(10,2),\n    department_id integer <span class="kw">REFERENCES</span> departments(id),\n    hire_date     date\n);\n\n<span class="kw">DROP TABLE</span> employees;'},
+      {p:'DROP TABLE удаляет саму структуру таблицы вместе с данными — в отличие от DELETE, который очищает только строки (глава 3.5).'}
+    ]},
+    {kicker:'2.3', title:'Типы данных в PostgreSQL', blocks:[
+      {p:'У каждого столбца есть тип, который ограничивает, что в него можно записать. Ниже — типы, которые использует учебная схема, и ещё несколько частых.'},
+      {table:{head:['Тип','Хранит','Пример'], rows:[
+        ['integer','целое число','35'],
+        ['serial','автоинкрементный integer, обычно для id','1, 2, 3…'],
+        ['numeric(p,s)','точное число с p значащими цифрами и s после запятой','numeric(10,2) → 90000.00'],
+        ['varchar(n)','строка переменной длины, до n символов','varchar(50)'],
+        ['text','строка без ограничения длины','—'],
+        ['boolean','true / false','true'],
+        ['date','календарная дата','2019-05-12']
+      ]}},
+      {note:'info', text:'Для денег обычно берут numeric, а не real/double precision — последние хранят приближённые значения и не годятся для точных сумм.'}
+    ]},
+    {kicker:'2.4', title:'Ограничения столбцов и таблиц', blocks:[
+      {p:'Ограничения (constraints) не дают записать в таблицу «плохие» данные.'},
+      {pre:'<span class="kw">CREATE TABLE</span> employees (\n    id     serial <span class="kw">PRIMARY KEY</span>,\n    name   varchar(50) <span class="kw">NOT NULL</span>,\n    email  varchar(80) <span class="kw">UNIQUE</span>,\n    age    integer <span class="kw">CHECK</span> (age &gt;= 18),\n    salary numeric(10,2) <span class="kw">DEFAULT</span> 0\n);'},
+      {table:{head:['Ограничение','Смысл'], rows:[
+        ['NOT NULL','значение обязательно'],
+        ['UNIQUE','значения в столбце не повторяются'],
+        ['PRIMARY KEY','NOT NULL + UNIQUE, однозначно определяет строку'],
+        ['CHECK (условие)','значение должно удовлетворять условию'],
+        ['DEFAULT значение','подставляется, если значение не указано при INSERT']
+      ]}}
+    ]},
+    {kicker:'2.5', title:'Внешние ключи', blocks:[
+      {p:'Внешний ключ (<strong>FOREIGN KEY</strong>) связывает столбец одной таблицы со столбцом-первичным-ключом другой — именно так employees.department_id ссылается на departments.id в нашей схеме.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees\n<span class="kw">ADD CONSTRAINT</span> fk_department\n<span class="kw">FOREIGN KEY</span> (department_id) <span class="kw">REFERENCES</span> departments(id)\n<span class="kw">ON DELETE</span> <span class="kw">CASCADE</span>;'},
+      {p:'ON DELETE CASCADE означает: при удалении отдела автоматически удалятся и все сотрудники этого отдела. Без этой опции PostgreSQL по умолчанию просто запретит удаление отдела, пока на него есть ссылки.'}
+    ]},
+    {kicker:'2.6', title:'Изменение таблиц', blocks:[
+      {p:'ALTER TABLE меняет уже существующую таблицу: добавляет и удаляет столбцы, меняет тип или имя.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees <span class="kw">ADD COLUMN</span> email varchar(80);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">DROP COLUMN</span> email;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">ALTER COLUMN</span> salary <span class="kw">TYPE</span> numeric(12,2);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME COLUMN</span> name <span class="kw">TO</span> full_name;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME TO</span> staff;'}
+    ]}
+  ],
+  ch3Topics:[
+    {kicker:'3.1', title:'Добавление данных. Команда INSERT', blocks:[
+      {p:'INSERT INTO ... VALUES добавляет одну или несколько новых строк. Столбцы, не указанные явно, получают значение по умолчанию или NULL.'},
+      {pre:'<span class="kw">INSERT INTO</span> employees (name, age, salary, department_id, hire_date)\n<span class="kw">VALUES</span> (<span class="str">\'Смирнов Олег\'</span>, 25, 60000, 2, <span class="str">\'2022-01-15\'</span>);\n\n<span class="cm">-- сразу несколько строк</span>\n<span class="kw">INSERT INTO</span> departments (name)\n<span class="kw">VALUES</span> (<span class="str">\'IT\'</span>), (<span class="str">\'Продажи\'</span>), (<span class="str">\'Маркетинг\'</span>);'}
+    ]},
+    {kicker:'3.2', title:'Получение данных. Команда SELECT', blocks:[
+      {p:'SELECT читает строки. Звёздочка возвращает все столбцы, но в реальном коде обычно перечисляют нужные явно.'},
+      {pre:'<span class="kw">SELECT</span> * <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees;'},
+      {table:{head:['name','salary'], rows:[['Иванов Иван','90000.00'],['Петров Петр','75000.00'],['Сидорова Анна','110000.00'],['Кузнецова Мария','68000.00'],['Смирнов Олег','60000.00']]}}
+    ]},
+    {kicker:'3.3', title:'Фильтрация. WHERE', blocks:[
+      {p:'WHERE оставляет только строки, удовлетворяющие условию. Условия комбинируются через AND/OR, есть операторы диапазона и поиска по шаблону.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; 70000 <span class="kw">AND</span> department_id = 1;\n\n<span class="cm">-- диапазон</span>\n<span class="kw">SELECT</span> name, age <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> age <span class="kw">BETWEEN</span> 25 <span class="kw">AND</span> 35;\n\n<span class="cm">-- шаблон по имени</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">\'Иванов%\'</span>;'},
+      {table:{head:['Оператор','Значение'], rows:[
+        ['=, &lt;&gt;, &gt;, &lt;, &gt;=, &lt;=','сравнение'],
+        ['BETWEEN a AND b','значение в диапазоне [a, b]'],
+        ['IN (a, b, c)','значение — одно из перечисленных'],
+        ["LIKE 'шаблон%'",'совпадение по маске (% — любые символы)'],
+        ['IS NULL / IS NOT NULL','проверка на отсутствие значения']
+      ]}}
+    ]},
+    {kicker:'3.4', title:'Обновление данных. Команда UPDATE', blocks:[
+      {p:'UPDATE ... SET ... WHERE меняет значения в уже существующих строках.'},
+      {pre:'<span class="kw">UPDATE</span> employees\n<span class="kw">SET</span> salary = salary * 1.1\n<span class="kw">WHERE</span> department_id = 2;'},
+      {note:'warn', text:'Если забыть WHERE, UPDATE применится ко всем строкам таблицы — это одна из самых частых ошибок новичков.'}
+    ]},
+    {kicker:'3.5', title:'Удаление данных. Команда DELETE', blocks:[
+      {p:'DELETE FROM ... WHERE удаляет строки, но не саму таблицу — структура и столбцы остаются.'},
+      {pre:'<span class="kw">DELETE FROM</span> employees\n<span class="kw">WHERE</span> id = 5;\n\n<span class="cm">-- без WHERE удалит вообще все строки таблицы</span>\n<span class="kw">DELETE FROM</span> employees;'},
+      {p:'Разница с главой 2: DROP TABLE уничтожает саму таблицу, DELETE — только её содержимое.'}
+    ]}
+  ],
+  ch4Topics:[
+    {kicker:'4.1', title:'DISTINCT. Выборка уникальных значений', blocks:[
+      {p:'Обычный SELECT возвращает все строки, включая повторяющиеся значения в отдельных столбцах. DISTINCT убирает дубликаты по перечисленным столбцам.'},
+      {pre:'<span class="kw">SELECT DISTINCT</span> department_id <span class="kw">FROM</span> employees;'},
+      {note:'info', text:'В PostgreSQL есть расширение стандарта — DISTINCT ON (столбец), которое вместе с ORDER BY оставляет только первую строку в каждой группе.'}
+    ]},
+    {kicker:'4.2', title:'ORDER BY. Сортировка', blocks:[
+      {p:'ORDER BY сортирует результат по одному или нескольким столбцам: ASC — по возрастанию (по умолчанию), DESC — по убыванию.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span>;\n\n<span class="cm">-- сортировка сразу по двум столбцам</span>\n<span class="kw">SELECT</span> name, department_id, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> department_id <span class="kw">ASC</span>, salary <span class="kw">DESC</span>;'},
+      {note:'info', text:'В PostgreSQL можно уточнить порядок NULL-значений: ORDER BY salary DESC NULLS LAST.'}
+    ]},
+    {kicker:'4.3', title:'Получение диапазона строк. LIMIT и OFFSET', blocks:[
+      {p:'LIMIT ограничивает число возвращаемых строк, OFFSET пропускает первые N строк результата — вместе они удобны для постраничного вывода.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span> <span class="kw">LIMIT</span> 3;\n\n<span class="cm">-- вторая "страница" по 2 строки</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> id <span class="kw">LIMIT</span> 2 <span class="kw">OFFSET</span> 2;'},
+      {note:'warn', text:'Без ORDER BY порядок строк в таблице не гарантирован, а значит LIMIT/OFFSET без сортировки могут вернуть разные строки при разных запусках.'}
+    ]},
+    {kicker:'4.4', title:'Операторы фильтрации', blocks:[
+      {p:'Кроме простых сравнений и BETWEEN/LIKE из главы 3, PostgreSQL поддерживает ещё несколько удобных операторов условий.'},
+      {pre:'<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (1, 2);\n\n<span class="cm">-- поиск без учёта регистра</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">ILIKE</span> <span class="str">\'%иван%\'</span>;'},
+      {table:{head:['Оператор','Значение'], rows:[
+        ['IN (a, b, c)','значение — одно из перечисленных'],
+        ['NOT IN (a, b, c)','значение не входит в список'],
+        ['ILIKE','как LIKE, но без учёта регистра букв (специфично для PostgreSQL)'],
+        ['IS DISTINCT FROM','сравнение, которое корректно работает и с NULL']
+      ]}}
+    ]},
+    {kicker:'4.5', title:'Агрегатные функции', blocks:[
+      {p:'Агрегатные функции сворачивают набор строк в одно значение: количество, сумму, среднее, минимум, максимум.'},
+      {pre:'<span class="kw">SELECT COUNT</span>(*) <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT AVG</span>(salary), <span class="kw">MIN</span>(salary), <span class="kw">MAX</span>(salary)\n<span class="kw">FROM</span> employees;'},
+      {table:{head:['Функция','Возвращает'], rows:[
+        ['COUNT(*)','число строк, включая те, где есть NULL'],
+        ['COUNT(столбец)','число строк, где значение столбца не NULL'],
+        ['SUM(столбец)','сумму значений'],
+        ['AVG(столбец)','среднее значение'],
+        ['MIN / MAX(столбец)','минимальное / максимальное значение']
+      ]}}
+    ]},
+    {kicker:'4.6', title:'Группировка', blocks:[
+      {p:'GROUP BY разбивает строки на группы по значению одного или нескольких столбцов; агрегатные функции в SELECT считаются отдельно для каждой группы. HAVING фильтрует уже сами группы — в отличие от WHERE, которое отсекает строки ещё до группировки.'},
+      {pre:'<span class="kw">SELECT</span> department_id, <span class="kw">COUNT</span>(*), <span class="kw">AVG</span>(salary)\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id;\n\n<span class="cm">-- только отделы со средней зарплатой выше 70000</span>\n<span class="kw">SELECT</span> department_id, <span class="kw">AVG</span>(salary) <span class="kw">AS</span> avg_salary\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id\n<span class="kw">HAVING</span> <span class="kw">AVG</span>(salary) &gt; 70000;'},
+      {note:'warn', text:'Каждый столбец в SELECT, который не обёрнут в агрегатную функцию, должен быть перечислен в GROUP BY.'}
+    ]},
+    {kicker:'4.7', title:'Подзапросы', blocks:[
+      {p:'Подзапрос — это SELECT, вложенный внутрь другого запроса: в WHERE, в FROM или даже в списке столбцов.'},
+      {pre:'<span class="cm">-- сотрудники с зарплатой выше средней по компании</span>\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; (<span class="kw">SELECT AVG</span>(salary) <span class="kw">FROM</span> employees);\n\n<span class="cm">-- подзапрос вместо списка значений в IN</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (<span class="kw">SELECT</span> id <span class="kw">FROM</span> departments <span class="kw">WHERE</span> name = <span class="str">\'IT\'</span>);\n\n<span class="cm">-- EXISTS: есть ли хоть один подходящий сотрудник</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> departments d\n<span class="kw">WHERE EXISTS</span> (<span class="kw">SELECT</span> 1 <span class="kw">FROM</span> employees e <span class="kw">WHERE</span> e.department_id = d.id);'},
+      {note:'info', text:'EXISTS часто эффективнее IN с большим подзапросом: PostgreSQL останавливается, как только находит первое совпадение.'}
+    ]}
+  ],
+  quizQuestions:[
+    {q:"Какая команда создаёт новую базу данных?", opts:["CREATE DATABASE company;","NEW DATABASE company;","CREATE SCHEMA company;","MAKE DATABASE company;"], correct:0, exp:"База данных создаётся командой CREATE DATABASE."},
+    {q:"Чем DROP TABLE отличается от DELETE FROM?", opts:["Ничем, это синонимы","DROP TABLE удаляет саму таблицу, DELETE — только строки","DELETE удаляет таблицу целиком","DROP TABLE работает только в pgAdmin"], correct:1, exp:"DROP TABLE убирает структуру таблицы вместе с данными, DELETE очищает только строки, оставляя таблицу."},
+    {q:"Какой тип лучше всего подходит для хранения зарплаты 90000.00?", opts:["boolean","varchar(10)","numeric(10,2)","date"], correct:2, exp:"numeric(p,s) хранит точные числа с заданным количеством знаков после запятой — то, что нужно для денег."},
+    {q:"Что делает тип serial при создании столбца id?", opts:["Делает столбец текстовым","Автоматически генерирует следующее целое число","Запрещает вставку строк","Хранит дату создания строки"], correct:1, exp:"serial — это integer с автоинкрементом, значения генерируются автоматически при INSERT."},
+    {code:"CREATE TABLE employees (\n  email varchar(80) UNIQUE\n);", q:"Что гарантирует ограничение UNIQUE на столбце email?", opts:["Email обязателен (не NULL)","Email не может повторяться у разных строк","Email автоматически в нижнем регистре","Email должен быть короче 80 символов"], correct:1, exp:"UNIQUE запрещает повторяющиеся значения в столбце, но не запрещает NULL."},
+    {q:"Какое ограничение однозначно идентифицирует строку и не допускает NULL?", opts:["CHECK","DEFAULT","PRIMARY KEY","FOREIGN KEY"], correct:2, exp:"PRIMARY KEY — это NOT NULL + UNIQUE, он однозначно определяет строку таблицы."},
+    {code:"ALTER TABLE employees\nADD CONSTRAINT fk_department\nFOREIGN KEY (department_id) REFERENCES departments(id)\nON DELETE CASCADE;", q:"Что произойдёт при удалении отдела из departments из-за ON DELETE CASCADE?", opts:["Ничего, отдел не удалится","Отдел удалится, а сотрудники останутся с пустым department_id","Отдел удалится вместе со всеми его сотрудниками","Будет выброшена ошибка"], correct:2, exp:"ON DELETE CASCADE распространяет удаление на связанные строки — сотрудники этого отдела удалятся тоже."},
+    {q:"Какая команда добавляет новый столбец в уже существующую таблицу?", opts:["ADD COLUMN email TO employees;","ALTER TABLE employees ADD COLUMN email varchar(80);","UPDATE employees ADD email varchar(80);","INSERT COLUMN email INTO employees;"], correct:1, exp:"Изменение структуры существующей таблицы делается через ALTER TABLE ... ADD COLUMN."},
+    {code:"INSERT INTO employees (name, age, salary)\nVALUES ('Смирнов Олег', 25, 60000);", q:"Что произойдёт со столбцами department_id и hire_date, если их не указать в INSERT?", opts:["INSERT завершится ошибкой в любом случае","Они получат значение по умолчанию или NULL","Строка не будет создана, но ошибки не будет","Они автоматически возьмут значения из последней строки"], correct:1, exp:"Не указанные при INSERT столбцы получают DEFAULT-значение, а если его нет — NULL (если столбец допускает NULL)."},
+    {q:"Что вернёт SELECT * FROM employees;?", opts:["Только имена сотрудников","Количество строк в таблице","Все столбцы всех строк таблицы employees","Ошибку, так как нужно всегда перечислять столбцы"], correct:2, exp:"Звёздочка означает «все столбцы», FROM employees без WHERE — все строки."},
+    {code:"SELECT name, age FROM employees\nWHERE age BETWEEN 25 AND 35;", q:"Кто попадёт в результат такого запроса, если возраст сотрудников — 35, 28, 42, 31, 25?", opts:["Только 35 и 25 (границы)","35, 28, 31, 25 — все, кроме 42","Только 28 и 31","Все пять сотрудников"], correct:1, exp:"BETWEEN 25 AND 35 включает обе границы, поэтому подходят 35, 28, 31 и 25 — но не 42."},
+    {q:"Какой оператор WHERE используется для поиска по маске, например 'Иванов%'?", opts:["IN","BETWEEN","LIKE","IS NULL"], correct:2, exp:"LIKE ищет по шаблону, где % заменяет любую последовательность символов."},
+    {code:"UPDATE employees\nSET salary = salary * 1.1;", q:"Чего не хватает в этом запросе, если нужно повысить зарплату только отделу с id = 2?", opts:["Ничего не хватает, всё верно","Ключевого слова SET","Условия WHERE department_id = 2","Точки с запятой"], correct:2, exp:"Без WHERE UPDATE применяется ко всем строкам таблицы — здесь зарплата поднимется у всех сотрудников, а не только у отдела 2."},
+    {q:"Что произойдёт при выполнении DELETE FROM employees; без WHERE?", opts:["Ничего, PostgreSQL потребует подтверждения","Удалятся все строки таблицы employees, но сама таблица останется","Удалится вся таблица employees целиком","Запрос не выполнится, это синтаксическая ошибка"], correct:1, exp:"DELETE без WHERE удаляет все строки таблицы, но структура таблицы (столбцы, ограничения) сохраняется."},
+    {q:"Что не так с запросом: DELETE employees WHERE id = 5;", opts:["Всё верно, ошибки нет","Пропущено ключевое слово FROM: должно быть DELETE FROM employees","WHERE нельзя использовать с DELETE","id нельзя сравнивать через ="], correct:1, exp:"Синтаксис DELETE требует FROM: DELETE FROM employees WHERE id = 5;"},
+    {q:"Что делает SELECT DISTINCT department_id FROM employees;?", opts:["Возвращает все строки без изменений","Возвращает только уникальные значения department_id","Удаляет строки с NULL","Сортирует таблицу по department_id"], correct:1, exp:"DISTINCT убирает повторяющиеся значения указанного столбца, оставляя только уникальные."},
+    {q:"Как отсортировать сотрудников по зарплате от большей к меньшей?", opts:["ORDER BY salary","ORDER BY salary ASC","ORDER BY salary DESC","SORT BY salary DESC"], correct:2, exp:"DESC задаёт сортировку по убыванию; ASC (или её отсутствие) — по возрастанию."},
+    {code:"SELECT name, salary FROM employees\nORDER BY salary DESC LIMIT 3;", q:"Сколько строк вернёт этот запрос, если в таблице 5 сотрудников?", opts:["5","3","2","Все строки, LIMIT здесь не действует"], correct:1, exp:"LIMIT 3 ограничивает результат тремя строками — тремя сотрудниками с наибольшей зарплатой."},
+    {q:"Что делает OFFSET 2 при использовании вместе с LIMIT?", opts:["Пропускает первые 2 строки результата","Возвращает только 2 строки","Удаляет 2 строки из таблицы","Сортирует результат по 2 столбцам"], correct:0, exp:"OFFSET пропускает указанное количество строк результата перед тем, как применяется LIMIT."},
+    {q:"Чем ILIKE отличается от LIKE?", opts:["Ничем, это полные синонимы","ILIKE не учитывает регистр букв при сопоставлении с шаблоном","ILIKE работает только с числовыми столбцами","ILIKE — устаревший синоним LIKE, который скоро уберут"], correct:1, exp:"ILIKE — специфичный для PostgreSQL оператор, аналогичный LIKE, но нечувствительный к регистру."},
+    {code:"SELECT COUNT(*) FROM employees;", q:"Что вернёт этот запрос?", opts:["Сумму всех зарплат","Количество строк в таблице employees","Список всех имён","Среднюю зарплату по компании"], correct:1, exp:"COUNT(*) считает количество строк, попавших в результат — здесь это все строки таблицы employees."},
+    {code:"SELECT department_id, AVG(salary)\nFROM employees\nGROUP BY department_id\nHAVING AVG(salary) > 70000;", q:"Что делает HAVING в этом запросе?", opts:["Фильтрует отдельные строки ещё до группировки","Фильтрует уже сгруппированные результаты по значению среднего","Сортирует получившиеся группы","Полностью заменяет собой WHERE везде"], correct:1, exp:"HAVING применяется после GROUP BY и фильтрует сами группы по результату агрегатной функции — здесь оставляет только отделы со средней зарплатой выше 70000."},
+    {code:"SELECT name, salary FROM employees\nWHERE salary > (SELECT AVG(salary) FROM employees);", q:"Что вернёт этот запрос с подзапросом?", opts:["Сотрудников с зарплатой выше средней по компании","Среднюю зарплату по компании","Всех сотрудников без исключения","Сотрудника с максимальной зарплатой"], correct:0, exp:"Подзапрос в скобках вычисляет среднюю зарплату, а внешний запрос отбирает сотрудников, чья зарплата её превышает."},
+    {q:"Что произойдёт при выполнении DROP DATABASE company; при наличии нужных прав?", opts:["Только очистятся все таблицы, сама база останется","База company будет безвозвратно удалена вместе со всеми данными","База просто переименуется","Доступ к базе будет заблокирован, но не удалён"], correct:1, exp:"DROP DATABASE удаляет всю базу данных без возможности восстановления."},
+    {q:"Чем text отличается от varchar(50)?", opts:["text работает быстрее","text не ограничивает длину строки, а varchar(50) ограничена 50 символами","text хранит только числа","Разницы нет, это синонимы"], correct:1, exp:"text — строка без ограничения длины, varchar(n) — не длиннее n символов."},
+    {code:"CREATE TABLE employees (\n  age integer CHECK (age >= 18)\n);", q:"Что произойдёт при попытке вставить сотрудника с age = 16?", opts:["Строка вставится, но age станет NULL","PostgreSQL вернёт ошибку, и INSERT не выполнится","age автоматически станет равным 18","Ничего, CHECK не проверяется при INSERT"], correct:1, exp:"Если условие CHECK не выполняется, PostgreSQL выдаёт ошибку и строка не добавляется."},
+    {q:"Что произойдёт, если при INSERT не указать столбец salary numeric(10,2) DEFAULT 0?", opts:["INSERT завершится ошибкой","salary получит значение 0","salary всегда останется NULL, DEFAULT не действует","Строка не будет создана"], correct:1, exp:"Если значение не указано, столбец получает значение, заданное в DEFAULT."},
+    {q:"Если FOREIGN KEY задан без ON DELETE CASCADE, что произойдёт при попытке удалить отдел, на который ссылаются сотрудники?", opts:["Отдел удалится, а department_id у сотрудников станет NULL","PostgreSQL по умолчанию запретит удаление, пока есть ссылки","Сотрудники удалятся автоматически вместе с отделом","Ничего не случится, отдел останется, а сотрудники исчезнут"], correct:1, exp:"Без CASCADE PostgreSQL по умолчанию не даёт удалить строку, на которую есть ссылки."},
+    {code:"ALTER TABLE employees RENAME COLUMN name TO full_name;", q:"Что делает эта команда?", opts:["Удаляет столбец name","Переименовывает столбец name в full_name","Меняет тип столбца name","Оставляет name и создаёт новый столбец full_name"], correct:1, exp:"RENAME COLUMN меняет только имя столбца, данные в нём остаются прежними."},
+    {code:"INSERT INTO departments (name)\nVALUES ('IT'), ('Продажи'), ('Маркетинг');", q:"Сколько новых строк добавит этот запрос?", opts:["Одну","Три","Ни одной, синтаксис неверный","Зависит от количества столбцов"], correct:1, exp:"Три группы значений через запятую после VALUES означают вставку трёх строк."},
+    {q:"Как отобрать сотрудников, у которых не указана дата приёма на работу (hire_date)?", opts:["WHERE hire_date = NULL","WHERE hire_date IS NULL","WHERE hire_date = ''","WHERE NOT hire_date"], correct:1, exp:"NULL нельзя сравнивать через =, для проверки используется IS NULL."},
+    {q:"Чем DISTINCT ON (department_id) отличается от обычного DISTINCT department_id?", opts:["Ничем","DISTINCT ON вместе с ORDER BY оставляет по одной первой в своём порядке строке на группу, а не просто убирает повторы значения","DISTINCT ON работает быстрее без ORDER BY","DISTINCT ON — опечатка, такого нет в PostgreSQL"], correct:1, exp:"DISTINCT ON — специфичная для PostgreSQL возможность: она возвращает целиком первую (по ORDER BY) строку каждой группы."},
+    {q:"Когда полезен оператор IS DISTINCT FROM вместо привычного <>?", opts:["При сравнении двух чисел","Когда среди сравниваемых значений может быть NULL и нужно корректное сравнение","При сравнении строк без учёта регистра","Он всегда полностью эквивалентен <>"], correct:1, exp:"IS DISTINCT FROM считает NULL обычным значением и потому корректно работает в сравнениях, где может встретиться NULL."},
+    {code:"SELECT SUM(salary), AVG(salary) FROM employees\nWHERE department_id = 2;", q:"Что вычислит этот запрос?", opts:["Сумму и среднее зарплат только у сотрудников отдела 2","Сумму и среднее по всей компании","Количество сотрудников в отделе 2","Максимальную и минимальную зарплату"], correct:0, exp:"WHERE department_id = 2 оставляет только строки этого отдела, и уже по ним считаются SUM и AVG."},
+    {code:"SELECT department_id, name, AVG(salary)\nFROM employees\nGROUP BY department_id;", q:"Почему этот запрос вызовет ошибку?", opts:["AVG нельзя использовать вместе с GROUP BY","department_id нельзя группировать","Столбец name не обёрнут в агрегатную функцию и не указан в GROUP BY","Ошибки не будет, запрос корректен"], correct:2, exp:"Каждый неагрегированный столбец в SELECT должен присутствовать в GROUP BY — здесь не хватает name."},
+    {q:"Как найти отделы, в которых нет ни одного сотрудника?", opts:["WHERE EXISTS (...)","WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.department_id = d.id)","WHERE department_id IS NULL","ORDER BY employees DESC"], correct:1, exp:"NOT EXISTS находит отделы, для которых подзапрос не вернул ни одной строки с подходящим сотрудником."}
+  ]
+},
+
+kk: {
+  langLabel:'ҚАЗ',
+  brandSubtitle:'2–4-тараулар · жаттықтырғыш',
+  navHome:'Басты бет', navCh2:'Деректер құрылымы', navCh3:'Деректермен операциялар', navCh4:'Сұраулар', navQuiz:'Тест (36 сұрақ)',
+  sub2:['2.1 Дерекқорды құру және жою','2.2 Кестелерді құру және жою','2.3 Дерек түрлері','2.4 Шектеулер','2.5 Сыртқы кілттер','2.6 Кестелерді өзгерту'],
+  sub3:['3.1 INSERT','3.2 SELECT','3.3 WHERE','3.4 UPDATE','3.5 DELETE'],
+  sub4:['4.1 DISTINCT','4.2 ORDER BY','4.3 LIMIT және OFFSET','4.4 Сүзгілеу операторлары','4.5 Агрегаттық функциялар','4.6 Топтастыру','4.7 Ішкі сұраулар'],
+  themeSystem:'Тақырып: жүйелік', themeLight:'Тақырып: ашық', themeDark:'Тақырып: қараңғы',
+  heroEyebrow:'metanit.com/sql/postgresql негізінде',
+  heroH1:'2–4-тараулар, бір оқу дерекқорында',
+  heroLead:'Деректер құрылымын анықтау, деректермен операциялар және сұраулар — екі кестеден тұратын ортақ схемамен, тірі SQL мысалдарымен және соңында 36 сұрақтан тұратын тестпен.',
+  ctaPrimary:'2-тараудан бастау', ctaGhost:'Тестке өту',
+  schemaTitle:'Оқу схемасы',
+  schemaDesc:'Сайттағы барлық мысалдар екі кестесі бар бір company дерекқорын қолданады.',
+  ch2Title:'2-тарау. Деректер құрылымын анықтау',
+  ch2Desc:'Қоймаудың өзінің пішінін қалай беру керек: дерекқорлар, кестелер, баған түрлері, шектеулер және кестелер арасындағы байланыстар.',
+  ch3Title:'3-тарау. Деректермен операциялар',
+  ch3Desc:'Құрылым дайын болғанда — жолдарды қосамыз, оқимыз, сүзгілейміз, өзгертеміз және жоямыз. Барлық мысалдар басты беттегі employees кестесінің деректерінде.',
+  ch4Title:'4-тарау. Сұраулар',
+  ch4Desc:'Қарапайым таңдаудан бастап сұрыптауға, жол диапазондарына, агрегаттық функцияларға, топтастыруға және ішкі сұрауларға дейін — бәрі сол employees және departments схемасында.',
+  quizTitle:'2–4-тараулар бойынша тест',
+  quizDesc:'Жоғарыдағы материал негізінде 36 сұрақ. Жауап дұрыс па, дұрыс емес пе — бірден көрінеді, қысқаша түсіндірмемен.',
+  quizIntro:'Деректер құрылымы, INSERT / SELECT / WHERE / UPDATE / DELETE операциялары және 4-тараудың сұраулары қаншалықты меңгерілгенін тексеруге дайынсыз ба?',
+  quizBeginBtn:'Тестті бастау',
+  bestScoreLabel:'Ең жақсы нәтиже', of:'/',
+  quizPosLabel:'Сұрақ', correctWord:'дұрыс',
+  nextBtn:'Келесі сұрақ →', showResultBtn:'Нәтижені көрсету →', retryBtn:'Қайта өту',
+  msgPerfect:'Барлық жауап дұрыс — 2–4-тараулар меңгерілді.',
+  msgGood:'Жақсы нәтиже, қайта қарайтын бірнеше тұс бар.',
+  msgRetry:'Жоғарыдағы бөлімдерді қайта оқып, қайта байқап көрген жөн.',
+  footer:'PostgreSQL бойынша metanit.com нұсқаулығының «Деректер құрылымын анықтау», «Деректермен операциялар» және «Сұраулар» тарауларының негізіндегі шағын сайт. Оқу мысалы, ресми құжаттама емес.',
+  ch2Topics:[
+    {kicker:'2.1', title:'Дерекқорды құру және жою', blocks:[
+      {p:'Дерекқор — сақтаудың ең жоғарғы деңгейі: оның ішінде кестелер, схемалар және басқа объектілер орналасады. <strong>CREATE DATABASE</strong> және <strong>DROP DATABASE</strong> командаларымен құрылады және жойылады, әдетте дерекқор құру құқығы бар пайдаланушы атынан.'},
+      {pre:'<span class="kw">CREATE DATABASE</span> company;\n\n<span class="cm">-- дерекқорды және оның ішіндегі барлық деректерді толығымен жояды</span>\n<span class="kw">DROP DATABASE</span> company;'},
+      {note:'warn', text:'DROP DATABASE қайтарылмайды және растауды сұрамайды — орындамас бұрын қосылым дәл осы дерекқорға жасалмағанына көз жеткізген жөн.'}
+    ]},
+    {kicker:'2.2', title:'Кестелерді құру және жою', blocks:[
+      {p:'Кесте <strong>CREATE TABLE</strong> арқылы сипатталады: аты және түрлері көрсетілген бағандар тізімі. Біздің схема осындай мысал: departments және employees.'},
+      {pre:'<span class="kw">CREATE TABLE</span> departments (\n    id   serial <span class="kw">PRIMARY KEY</span>,\n    name varchar(50) <span class="kw">NOT NULL</span>\n);\n\n<span class="kw">CREATE TABLE</span> employees (\n    id            serial <span class="kw">PRIMARY KEY</span>,\n    name          varchar(50) <span class="kw">NOT NULL</span>,\n    age           integer,\n    salary        numeric(10,2),\n    department_id integer <span class="kw">REFERENCES</span> departments(id),\n    hire_date     date\n);\n\n<span class="kw">DROP TABLE</span> employees;'},
+      {p:'DROP TABLE кестенің құрылымын деректерімен бірге жояды — 3.5-бөлімдегі DELETE-тен айырмашылығы, ол тек жолдарды тазалайды.'}
+    ]},
+    {kicker:'2.3', title:'PostgreSQL-дегі дерек түрлері', blocks:[
+      {p:'Әрбір бағанда оған не жазуға болатынын шектейтін түрі бар. Төменде — оқу схемасында қолданылатын түрлер және тағы бірнеше жиі кездесетіні.'},
+      {table:{head:['Түрі','Не сақтайды','Мысал'], rows:[
+        ['integer','бүтін сан','35'],
+        ['serial','автоматты өсетін integer, әдетте id үшін','1, 2, 3…'],
+        ['numeric(p,s)','p маңызды санды, оның ішінде s үтірден кейінгі саны бар дәл сан','numeric(10,2) → 90000.00'],
+        ['varchar(n)','ұзындығы n символға дейінгі жол','varchar(50)'],
+        ['text','ұзындығы шектелмеген жол','—'],
+        ['boolean','true / false','true'],
+        ['date','күнтізбелік күн','2019-05-12']
+      ]}},
+      {note:'info', text:'Ақша үшін әдетте real/double precision емес, numeric алынады — соңғылары жуық мәндерді сақтайды және дәл сомалар үшін жарамайды.'}
+    ]},
+    {kicker:'2.4', title:'Баған және кесте шектеулері', blocks:[
+      {p:'Шектеулер (constraints) кестеге «дұрыс емес» деректерді жазуға жол бермейді.'},
+      {pre:'<span class="kw">CREATE TABLE</span> employees (\n    id     serial <span class="kw">PRIMARY KEY</span>,\n    name   varchar(50) <span class="kw">NOT NULL</span>,\n    email  varchar(80) <span class="kw">UNIQUE</span>,\n    age    integer <span class="kw">CHECK</span> (age &gt;= 18),\n    salary numeric(10,2) <span class="kw">DEFAULT</span> 0\n);'},
+      {table:{head:['Шектеу','Мағынасы'], rows:[
+        ['NOT NULL','мән міндетті түрде болуы керек'],
+        ['UNIQUE','бағандағы мәндер қайталанбайды'],
+        ['PRIMARY KEY','NOT NULL + UNIQUE, жолды бірегей анықтайды'],
+        ['CHECK (шарт)','мән шартты қанағаттандыруы керек'],
+        ['DEFAULT мән','INSERT кезінде мән көрсетілмесе, осы мән қойылады']
+      ]}}
+    ]},
+    {kicker:'2.5', title:'Сыртқы кілттер', blocks:[
+      {p:'Сыртқы кілт (<strong>FOREIGN KEY</strong>) бір кестенің бағанын басқа кестенің негізгі кілт бағанымен байланыстырады — дәл осылай employees.department_id біздің схемада departments.id-ге сілтейді.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees\n<span class="kw">ADD CONSTRAINT</span> fk_department\n<span class="kw">FOREIGN KEY</span> (department_id) <span class="kw">REFERENCES</span> departments(id)\n<span class="kw">ON DELETE</span> <span class="kw">CASCADE</span>;'},
+      {p:'ON DELETE CASCADE мынаны білдіреді: бөлім жойылғанда, осы бөлімнің барлық қызметкерлері де автоматты түрде жойылады. Бұл опциясыз PostgreSQL әдепкіде бөлімге сілтемелер бар болған кезде оны жоюға тыйым салады.'}
+    ]},
+    {kicker:'2.6', title:'Кестелерді өзгерту', blocks:[
+      {p:'ALTER TABLE бар кестені өзгертеді: баған қосады, жояды, түрін немесе атын ауыстырады.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees <span class="kw">ADD COLUMN</span> email varchar(80);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">DROP COLUMN</span> email;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">ALTER COLUMN</span> salary <span class="kw">TYPE</span> numeric(12,2);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME COLUMN</span> name <span class="kw">TO</span> full_name;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME TO</span> staff;'}
+    ]}
+  ],
+  ch3Topics:[
+    {kicker:'3.1', title:'Деректерді қосу. INSERT командасы', blocks:[
+      {p:'INSERT INTO ... VALUES бір немесе бірнеше жаңа жол қосады. Тікелей көрсетілмеген бағандар әдепкі мәнді немесе NULL алады.'},
+      {pre:'<span class="kw">INSERT INTO</span> employees (name, age, salary, department_id, hire_date)\n<span class="kw">VALUES</span> (<span class="str">\'Смирнов Олег\'</span>, 25, 60000, 2, <span class="str">\'2022-01-15\'</span>);\n\n<span class="cm">-- бірден бірнеше жол</span>\n<span class="kw">INSERT INTO</span> departments (name)\n<span class="kw">VALUES</span> (<span class="str">\'IT\'</span>), (<span class="str">\'Сату\'</span>), (<span class="str">\'Маркетинг\'</span>);'}
+    ]},
+    {kicker:'3.2', title:'Деректерді алу. SELECT командасы', blocks:[
+      {p:'SELECT жолдарды оқиды. Жұлдызша барлық бағанды қайтарады, бірақ нақты кодта әдетте керекті бағандар тікелей аталады.'},
+      {pre:'<span class="kw">SELECT</span> * <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees;'},
+      {table:{head:['name','salary'], rows:[['Иванов Иван','90000.00'],['Петров Петр','75000.00'],['Сидорова Анна','110000.00'],['Кузнецова Мария','68000.00'],['Смирнов Олег','60000.00']]}}
+    ]},
+    {kicker:'3.3', title:'Сүзгілеу. WHERE', blocks:[
+      {p:'WHERE тек шартты қанағаттандыратын жолдарды қалдырады. Шарттар AND/OR арқылы біріктіріледі, диапазон және үлгі бойынша іздеу операторлары бар.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; 70000 <span class="kw">AND</span> department_id = 1;\n\n<span class="cm">-- диапазон</span>\n<span class="kw">SELECT</span> name, age <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> age <span class="kw">BETWEEN</span> 25 <span class="kw">AND</span> 35;\n\n<span class="cm">-- аты бойынша үлгі</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">\'Иванов%\'</span>;'},
+      {table:{head:['Оператор','Мағынасы'], rows:[
+        ['=, &lt;&gt;, &gt;, &lt;, &gt;=, &lt;=','салыстыру'],
+        ['BETWEEN a AND b','[a, b] диапазонындағы мән'],
+        ['IN (a, b, c)','мән — аталғандардың бірі'],
+        ["LIKE 'үлгі%'",'маска бойынша сәйкестік (% — кез келген символдар)'],
+        ['IS NULL / IS NOT NULL','мәннің жоқтығын тексеру']
+      ]}}
+    ]},
+    {kicker:'3.4', title:'Деректерді жаңарту. UPDATE командасы', blocks:[
+      {p:'UPDATE ... SET ... WHERE бар жолдардағы мәндерді өзгертеді.'},
+      {pre:'<span class="kw">UPDATE</span> employees\n<span class="kw">SET</span> salary = salary * 1.1\n<span class="kw">WHERE</span> department_id = 2;'},
+      {note:'warn', text:'WHERE-ді ұмытып кетсеңіз, UPDATE кестенің барлық жолдарына қолданылады — бұл жаңадан бастаушылардың ең жиі кездесетін қателерінің бірі.'}
+    ]},
+    {kicker:'3.5', title:'Деректерді жою. DELETE командасы', blocks:[
+      {p:'DELETE FROM ... WHERE жолдарды жояды, бірақ кестенің өзін емес — құрылым мен бағандар сол күйінде қалады.'},
+      {pre:'<span class="kw">DELETE FROM</span> employees\n<span class="kw">WHERE</span> id = 5;\n\n<span class="cm">-- WHERE-сіз кестенің барлық жолдарын жояды</span>\n<span class="kw">DELETE FROM</span> employees;'},
+      {p:'2-тараудан айырмашылығы: DROP TABLE кестенің өзін жояды, ал DELETE — тек оның мазмұнын.'}
+    ]}
+  ],
+  ch4Topics:[
+    {kicker:'4.1', title:'DISTINCT. Бірегей мәндерді таңдау', blocks:[
+      {p:'Әдеттегі SELECT барлық жолды, соның ішінде жеке бағандардағы қайталанатын мәндерді де қайтарады. DISTINCT аталған бағандар бойынша қайталанулардан арылтады.'},
+      {pre:'<span class="kw">SELECT DISTINCT</span> department_id <span class="kw">FROM</span> employees;'},
+      {note:'info', text:'PostgreSQL-де стандартты кеңейту бар — DISTINCT ON (баған), ол ORDER BY-мен бірге әр топта тек бірінші жолды қалдырады.'}
+    ]},
+    {kicker:'4.2', title:'ORDER BY. Сұрыптау', blocks:[
+      {p:'ORDER BY нәтижені бір немесе бірнеше баған бойынша сұрыптайды: ASC — өсу ретімен (әдепкі), DESC — кему ретімен.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span>;\n\n<span class="cm">-- екі баған бойынша бірден сұрыптау</span>\n<span class="kw">SELECT</span> name, department_id, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> department_id <span class="kw">ASC</span>, salary <span class="kw">DESC</span>;'},
+      {note:'info', text:'PostgreSQL-де NULL мәндерінің орнын нақтылауға болады: ORDER BY salary DESC NULLS LAST.'}
+    ]},
+    {kicker:'4.3', title:'Жол диапазонын алу. LIMIT және OFFSET', blocks:[
+      {p:'LIMIT қайтарылатын жол санын шектейді, OFFSET нәтиженің алғашқы N жолын өткізіп жібереді — бірге беттеп шығару үшін ыңғайлы.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span> <span class="kw">LIMIT</span> 3;\n\n<span class="cm">-- екінші "бет", әр бетте 2 жол</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> id <span class="kw">LIMIT</span> 2 <span class="kw">OFFSET</span> 2;'},
+      {note:'warn', text:'ORDER BY-сыз кестедегі жолдардың реті кепілденбейді, сондықтан сұрыптаусыз LIMIT/OFFSET әр рет әртүрлі жол қайтаруы мүмкін.'}
+    ]},
+    {kicker:'4.4', title:'Сүзгілеу операторлары', blocks:[
+      {p:'3-тараудағы қарапайым салыстырулар мен BETWEEN/LIKE-тен басқа, PostgreSQL тағы бірнеше ыңғайлы шарт операторын қолдайды.'},
+      {pre:'<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (1, 2);\n\n<span class="cm">-- регистрді ескермей іздеу</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">ILIKE</span> <span class="str">\'%иван%\'</span>;'},
+      {table:{head:['Оператор','Мағынасы'], rows:[
+        ['IN (a, b, c)','мән — аталғандардың бірі'],
+        ['NOT IN (a, b, c)','мән тізімге кірмейді'],
+        ['ILIKE','LIKE сияқты, бірақ әріп регистрін ескермейді (PostgreSQL-ге тән)'],
+        ['IS DISTINCT FROM','NULL-мен де дұрыс жұмыс істейтін салыстыру']
+      ]}}
+    ]},
+    {kicker:'4.5', title:'Агрегаттық функциялар', blocks:[
+      {p:'Агрегаттық функциялар жолдар жиынын бір мәнге жинақтайды: саны, қосындысы, орташасы, минимум, максимум.'},
+      {pre:'<span class="kw">SELECT COUNT</span>(*) <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT AVG</span>(salary), <span class="kw">MIN</span>(salary), <span class="kw">MAX</span>(salary)\n<span class="kw">FROM</span> employees;'},
+      {table:{head:['Функция','Нені қайтарады'], rows:[
+        ['COUNT(*)','жол саны, NULL бар жолдарды қоса'],
+        ['COUNT(баған)','мәні NULL емес жолдардың саны'],
+        ['SUM(баған)','мәндердің қосындысы'],
+        ['AVG(баған)','орташа мән'],
+        ['MIN / MAX(баған)','ең кіші / ең үлкен мән']
+      ]}}
+    ]},
+    {kicker:'4.6', title:'Топтастыру', blocks:[
+      {p:'GROUP BY жолдарды бір немесе бірнеше баған мәні бойынша топтарға бөледі; SELECT-тегі агрегаттық функциялар әр топ үшін бөлек есептеледі. HAVING топтардың өзін сүзеді — топтастыруға дейін жолдарды кесетін WHERE-ден айырмашылығы осында.'},
+      {pre:'<span class="kw">SELECT</span> department_id, <span class="kw">COUNT</span>(*), <span class="kw">AVG</span>(salary)\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id;\n\n<span class="cm">-- орташа жалақысы 70000-нан жоғары бөлімдер ғана</span>\n<span class="kw">SELECT</span> department_id, <span class="kw">AVG</span>(salary) <span class="kw">AS</span> avg_salary\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id\n<span class="kw">HAVING</span> <span class="kw">AVG</span>(salary) &gt; 70000;'},
+      {note:'warn', text:'Агрегаттық функцияға оралмаған әрбір SELECT бағаны GROUP BY ішінде де көрсетілуі керек.'}
+    ]},
+    {kicker:'4.7', title:'Ішкі сұраулар', blocks:[
+      {p:'Ішкі сұрау (subquery) — басқа сұраудың ішіне салынған SELECT: WHERE ішінде, FROM ішінде немесе тіпті баған тізімінде.'},
+      {pre:'<span class="cm">-- компания бойынша орташадан жоғары жалақы алатын қызметкерлер</span>\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; (<span class="kw">SELECT AVG</span>(salary) <span class="kw">FROM</span> employees);\n\n<span class="cm">-- IN ішіндегі мән тізімінің орнына ішкі сұрау</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (<span class="kw">SELECT</span> id <span class="kw">FROM</span> departments <span class="kw">WHERE</span> name = <span class="str">\'IT\'</span>);\n\n<span class="cm">-- EXISTS: сәйкес келетін қызметкер бар ма</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> departments d\n<span class="kw">WHERE EXISTS</span> (<span class="kw">SELECT</span> 1 <span class="kw">FROM</span> employees e <span class="kw">WHERE</span> e.department_id = d.id);'},
+      {note:'info', text:'Үлкен ішкі сұраумен EXISTS әдетте IN-нан тиімдірек: PostgreSQL бірінші сәйкестік табылысымен тоқтайды.'}
+    ]}
+  ],
+  quizQuestions:[
+    {q:"Жаңа дерекқор құратын команда қайсы?", opts:["CREATE DATABASE company;","NEW DATABASE company;","CREATE SCHEMA company;","MAKE DATABASE company;"], correct:0, exp:"Дерекқор CREATE DATABASE командасымен құрылады."},
+    {q:"DROP TABLE мен DELETE FROM арасындағы айырмашылық қандай?", opts:["Айырмашылық жоқ, бұл синонимдер","DROP TABLE кестенің өзін жояды, DELETE — тек жолдарды","DELETE кестені толығымен жояды","DROP TABLE тек pgAdmin-де ғана жұмыс істейді"], correct:1, exp:"DROP TABLE кестенің құрылымын деректерімен бірге жояды, ал DELETE тек жолдарды тазалайды, кесте сол күйінде қалады."},
+    {q:"90000.00 жалақыны сақтауға қай түр ең қолайлы?", opts:["boolean","varchar(10)","numeric(10,2)","date"], correct:2, exp:"numeric(p,s) үтірден кейін белгіленген саны бар дәл сандарды сақтайды — ақша үшін керегі осы."},
+    {q:"id бағанын құрғанда serial түрі не істейді?", opts:["Бағанды мәтіндік етеді","Келесі бүтін санды автоматты түрде жасайды","Жол қосуға тыйым салады","Жолдың құрылған күнін сақтайды"], correct:1, exp:"serial — бұл автоматты өсетін integer, мәндер INSERT кезінде автоматты түрде жасалады."},
+    {code:"CREATE TABLE employees (\n  email varchar(80) UNIQUE\n);", q:"email бағанындағы UNIQUE шектеуі нені кепілдейді?", opts:["Email міндетті (NULL емес)","Email әртүрлі жолдарда қайталанбайды","Email автоматты түрде кіші әріппен жазылады","Email 80 символдан қысқа болуы керек"], correct:1, exp:"UNIQUE бағанда мәндердің қайталануына тыйым салады, бірақ NULL-ға тыйым салмайды."},
+    {q:"Қай шектеу жолды бірегей анықтайды және NULL-ға жол бермейді?", opts:["CHECK","DEFAULT","PRIMARY KEY","FOREIGN KEY"], correct:2, exp:"PRIMARY KEY — бұл NOT NULL + UNIQUE, ол кестенің жолын бірегей анықтайды."},
+    {code:"ALTER TABLE employees\nADD CONSTRAINT fk_department\nFOREIGN KEY (department_id) REFERENCES departments(id)\nON DELETE CASCADE;", q:"ON DELETE CASCADE салдарынан departments-тен бөлім жойылғанда не болады?", opts:["Ешнәрсе, бөлім жойылмайды","Бөлім жойылады, ал қызметкерлер бос department_id-мен қалады","Бөлім барлық қызметкерлерімен бірге жойылады","Қате шығады"], correct:2, exp:"ON DELETE CASCADE жоюды байланысты жолдарға да таратады — сол бөлімнің қызметкерлері де жойылады."},
+    {q:"Бар кестеге жаңа баған қосатын команда қайсы?", opts:["ADD COLUMN email TO employees;","ALTER TABLE employees ADD COLUMN email varchar(80);","UPDATE employees ADD email varchar(80);","INSERT COLUMN email INTO employees;"], correct:1, exp:"Бар кестенің құрылымын өзгерту ALTER TABLE ... ADD COLUMN арқылы жасалады."},
+    {code:"INSERT INTO employees (name, age, salary)\nVALUES ('Смирнов Олег', 25, 60000);", q:"INSERT кезінде department_id және hire_date көрсетілмесе, оларға не болады?", opts:["INSERT әрқашан қатемен аяқталады","Олар әдепкі мәнді немесе NULL алады","Жол жасалмайды, бірақ қате шықпайды","Олар автоматты түрде соңғы жолдың мәндерін алады"], correct:1, exp:"INSERT кезінде көрсетілмеген бағандар DEFAULT мәнін алады, ал ол болмаса — NULL (баған NULL-ға рұқсат етсе)."},
+    {q:"SELECT * FROM employees; нені қайтарады?", opts:["Тек қызметкерлердің аттарын","Кестедегі жолдар санын","employees кестесінің барлық жолдарының барлық бағанын","Қате, өйткені бағандарды әрқашан тізу керек"], correct:2, exp:"Жұлдызша «барлық баған» дегенді білдіреді, WHERE-сіз FROM employees — барлық жол."},
+    {code:"SELECT name, age FROM employees\nWHERE age BETWEEN 25 AND 35;", q:"Қызметкерлердің жасы 35, 28, 42, 31, 25 болса, кім нәтижеге түседі?", opts:["Тек 35 және 25 (шектер)","35, 28, 31, 25 — 42-ден басқасының бәрі","Тек 28 және 31","Барлық бес қызметкер"], correct:1, exp:"BETWEEN 25 AND 35 екі шекараны да қосады, сондықтан 35, 28, 31 және 25 сәйкес келеді, ал 42 — жоқ."},
+    {q:"'Иванов%' сияқты маска бойынша іздеуге қай WHERE операторы қолданылады?", opts:["IN","BETWEEN","LIKE","IS NULL"], correct:2, exp:"LIKE үлгі бойынша іздейді, мұнда % кез келген символдар тізбегін алмастырады."},
+    {code:"UPDATE employees\nSET salary = salary * 1.1;", q:"Тек id = 2 бөліміне жалақыны көтеру керек болса, бұл сұрауда не жетіспейді?", opts:["Ешнәрсе жетіспейді, бәрі дұрыс","SET кілт сөзі","WHERE department_id = 2 шарты","Үтір нүкте"], correct:2, exp:"WHERE-сіз UPDATE кестенің барлық жолдарына қолданылады — мұнда жалақы тек 2-бөлімде емес, барлық қызметкерде көтеріледі."},
+    {q:"DELETE FROM employees; WHERE-сіз орындалса не болады?", opts:["Ешнәрсе, PostgreSQL растауды талап етеді","employees кестесінің барлық жолдары жойылады, бірақ кесте қалады","employees кестесінің өзі толығымен жойылады","Сұрау орындалмайды, бұл синтаксистік қате"], correct:1, exp:"WHERE-сіз DELETE кестенің барлық жолдарын жояды, бірақ кестенің құрылымы (бағандар, шектеулер) сақталады."},
+    {q:"DELETE employees WHERE id = 5; сұрауында не дұрыс емес?", opts:["Бәрі дұрыс, қате жоқ","FROM кілт сөзі жетіспейді: DELETE FROM employees болуы керек","WHERE-ді DELETE-пен қолдануға болмайды","id-ді = арқылы салыстыруға болмайды"], correct:1, exp:"DELETE синтаксисі FROM-ды талап етеді: DELETE FROM employees WHERE id = 5;"},
+    {q:"SELECT DISTINCT department_id FROM employees; не істейді?", opts:["Барлық жолды өзгеріссіз қайтарады","Тек бірегей department_id мәндерін қайтарады","NULL бар жолдарды жояды","Кестені department_id бойынша сұрыптайды"], correct:1, exp:"DISTINCT көрсетілген бағанның қайталанатын мәндерін алып тастап, тек бірегейлерін қалдырады."},
+    {q:"Қызметкерлерді жалақысы бойынша үлкеннен кішіге қалай сұрыптауға болады?", opts:["ORDER BY salary","ORDER BY salary ASC","ORDER BY salary DESC","SORT BY salary DESC"], correct:2, exp:"DESC кему ретімен сұрыптауды береді; ASC (немесе оның болмауы) — өсу ретімен."},
+    {code:"SELECT name, salary FROM employees\nORDER BY salary DESC LIMIT 3;", q:"Кестеде 5 қызметкер болса, бұл сұрау неше жол қайтарады?", opts:["5","3","2","Барлық жол, мұнда LIMIT әсер етпейді"], correct:1, exp:"LIMIT 3 нәтижені үш жолмен шектейді — жалақысы ең жоғары үш қызметкермен."},
+    {q:"LIMIT-пен бірге қолданылған OFFSET 2 не істейді?", opts:["Нәтиженің алғашқы 2 жолын өткізіп жібереді","Тек 2 жол қайтарады","Кестеден 2 жолды жояды","Нәтижені 2 баған бойынша сұрыптайды"], correct:0, exp:"OFFSET LIMIT қолданылмас бұрын нәтиженің көрсетілген санындағы жолын өткізіп жібереді."},
+    {q:"ILIKE мен LIKE арасындағы айырмашылық қандай?", opts:["Айырмашылық жоқ, толық синонимдер","ILIKE үлгімен салыстырғанда әріп регистрін ескермейді","ILIKE тек сандық бағандармен жұмыс істейді","ILIKE — жақында алынып тасталатын ескірген LIKE синонимі"], correct:1, exp:"ILIKE — PostgreSQL-ге тән оператор, LIKE-қа ұқсас, бірақ регистрге сезімтал емес."},
+    {code:"SELECT COUNT(*) FROM employees;", q:"Бұл сұрау нені қайтарады?", opts:["Барлық жалақының қосындысын","employees кестесіндегі жол санын","Барлық аттардың тізімін","Компания бойынша орташа жалақыны"], correct:1, exp:"COUNT(*) нәтижеге түскен жолдардың санын есептейді — мұнда бұл employees кестесінің барлық жолы."},
+    {code:"SELECT department_id, AVG(salary)\nFROM employees\nGROUP BY department_id\nHAVING AVG(salary) > 70000;", q:"Бұл сұрауда HAVING не істейді?", opts:["Топтастыруға дейін жеке жолдарды сүзеді","Топтастырылған нәтижелерді орташа мән бойынша сүзеді","Шыққан топтарды сұрыптайды","Барлық жерде WHERE-ді толығымен алмастырады"], correct:1, exp:"HAVING GROUP BY-дан кейін қолданылады және топтарды агрегаттық функция нәтижесі бойынша сүзеді — мұнда орташа жалақысы 70000-нан жоғары бөлімдерді ғана қалдырады."},
+    {code:"SELECT name, salary FROM employees\nWHERE salary > (SELECT AVG(salary) FROM employees);", q:"Ішкі сұраумен бұл сұрау нені қайтарады?", opts:["Компания бойынша орташадан жоғары жалақы алатын қызметкерлерді","Компания бойынша орташа жалақыны","Ешбір ерекшеліксіз барлық қызметкерлерді","Жалақысы ең жоғары қызметкерді"], correct:0, exp:"Жақшадағы ішкі сұрау орташа жалақыны есептейді, ал сыртқы сұрау сол мәннен асатын жалақысы бар қызметкерлерді таңдайды."},
+    {q:"Керек құқық болған жағдайда DROP DATABASE company; орындалғанда не болады?", opts:["Тек барлық кестелер тазаланады, база өзі қалады","company базасы барлық деректерімен бірге қайтарылмастай жойылады","База жай ғана қайта аталады","Базаға қатынау бұғатталады, бірақ ол жойылмайды"], correct:1, exp:"DROP DATABASE бүкіл дерекқорды қайтарылмайтын түрде жояды."},
+    {q:"text пен varchar(50) арасындағы айырмашылық қандай?", opts:["text жылдамырақ жұмыс істейді","text жол ұзындығын шектемейді, ал varchar(50) 50 символмен шектелген","text тек сандарды сақтайды","Айырмашылық жоқ, бұл синонимдер"], correct:1, exp:"text — ұзындығы шектелмеген жол, ал varchar(n) n символдан аспайды."},
+    {code:"CREATE TABLE employees (\n  age integer CHECK (age >= 18)\n);", q:"age = 16 болатын қызметкерді қосуға тырыссаңыз не болады?", opts:["Жол қосылады, бірақ age NULL болады","PostgreSQL қате қайтарады, INSERT орындалмайды","age автоматты түрде 18-ге теңеледі","Ешнәрсе, CHECK INSERT кезінде тексерілмейді"], correct:1, exp:"CHECK шарты орындалмаса, PostgreSQL қате шығарады және жол қосылмайды."},
+    {q:"INSERT кезінде salary numeric(10,2) DEFAULT 0 бағаны көрсетілмесе не болады?", opts:["INSERT қатемен аяқталады","salary 0 мәнін алады","salary әрқашан NULL болады, DEFAULT әсер етпейді","Жол құрылмайды"], correct:1, exp:"Мән көрсетілмесе, баған DEFAULT-та көрсетілген мәнді алады."},
+    {q:"FOREIGN KEY ON DELETE CASCADE-сіз берілсе, сілтемесі бар бөлімді жоюға тырысқанда не болады?", opts:["Бөлім жойылады, қызметкерлердің department_id мәні NULL болады","PostgreSQL әдепкіде сілтемелер бар кезде жоюға тыйым салады","Қызметкерлер бөліммен бірге автоматты түрде жойылады","Ешнәрсе болмайды, бөлім қалады, ал қызметкерлер жоғалады"], correct:1, exp:"CASCADE көрсетілмесе, PostgreSQL сілтеме бар жолды жоюға әдепкіде тыйым салады."},
+    {code:"ALTER TABLE employees RENAME COLUMN name TO full_name;", q:"Бұл команда не істейді?", opts:["name бағанын жояды","name бағанын full_name деп қайта атайды","name бағанының түрін өзгертеді","name-ды сақтап, жаңа full_name бағанын жасайды"], correct:1, exp:"RENAME COLUMN тек бағанның атын өзгертеді, ондағы деректер сол күйінде қалады."},
+    {code:"INSERT INTO departments (name)\nVALUES ('IT'), ('Сату'), ('Маркетинг');", q:"Бұл сұрау неше жаңа жол қосады?", opts:["Бір","Үш","Ешбірін, синтаксис қате","Баған санына байланысты"], correct:1, exp:"VALUES-тен кейінгі үтірмен бөлінген үш жақша — үш жол қосылатынын білдіреді."},
+    {q:"hire_date көрсетілмеген қызметкерлерді қалай таңдауға болады?", opts:["WHERE hire_date = NULL","WHERE hire_date IS NULL","WHERE hire_date = ''","WHERE NOT hire_date"], correct:1, exp:"NULL-ды = арқылы салыстыруға болмайды, тексеру үшін IS NULL қолданылады."},
+    {q:"DISTINCT ON (department_id) әдеттегі DISTINCT department_id-тен немен ерекшеленеді?", opts:["Ешнәрсемен","DISTINCT ON ORDER BY-мен бірге әр топта өз ретінде бірінші жолды толығымен қалдырады, тек мәндерді қайталанудан арылтпайды","DISTINCT ON ORDER BY-сыз жылдамырақ жұмыс істейді","DISTINCT ON — қате жазылған, PostgreSQL-де ондай жоқ"], correct:1, exp:"DISTINCT ON — PostgreSQL-ге тән мүмкіндік: ол әр топтың (ORDER BY бойынша) бірінші жолын толығымен қайтарады."},
+    {q:"Әдеттегі <> орнына IS DISTINCT FROM операторы қашан пайдалы?", opts:["Екі санды салыстырғанда","Салыстырылатын мәндер арасында NULL болуы мүмкін болғанда және дұрыс салыстыру керек болғанда","Жолдарды регистрді ескермей салыстырғанда","Ол әрқашан <>-ге толық пара-пар"], correct:1, exp:"IS DISTINCT FROM NULL-ды әдеттегі мән ретінде қарастырады, сондықтан NULL қатысатын салыстыруларда қауіпсіз жұмыс істейді."},
+    {code:"SELECT SUM(salary), AVG(salary) FROM employees\nWHERE department_id = 2;", q:"Бұл сұрау нені есептейді?", opts:["Тек 2-бөлім қызметкерлерінің жалақы қосындысы мен ортасын","Бүкіл компания бойынша қосынды мен ортаны","2-бөлімдегі қызметкерлер санын","Ең жоғары және ең төмен жалақыны"], correct:0, exp:"WHERE department_id = 2 тек сол бөлімнің жолдарын қалдырады, содан кейін SUM мен AVG солар бойынша есептеледі."},
+    {code:"SELECT department_id, name, AVG(salary)\nFROM employees\nGROUP BY department_id;", q:"Бұл сұрау неге қате шығарады?", opts:["AVG-ті GROUP BY-мен бірге қолдануға болмайды","department_id-ды топтастыруға болмайды","name бағаны агрегаттық функцияға оралмаған және GROUP BY ішінде көрсетілмеген","Қате болмайды, сұрау дұрыс"], correct:2, exp:"SELECT-тегі агрегатталмаған әрбір баған GROUP BY тізімінде болуы керек — мұнда name жетіспейді."},
+    {q:"Ешбір қызметкері жоқ бөлімдерді қалай табуға болады?", opts:["WHERE EXISTS (...)","WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.department_id = d.id)","WHERE department_id IS NULL","ORDER BY employees DESC"], correct:1, exp:"NOT EXISTS ішкі сұрау сәйкес қызметкер жолын қайтармаған бөлімдерді табады."}
+  ]
+},
+
+en: {
+  langLabel:'ENG',
+  brandSubtitle:'Chapters 2–4 · practice site',
+  navHome:'Home', navCh2:'Data structure', navCh3:'Data operations', navCh4:'Queries', navQuiz:'Quiz (36 questions)',
+  sub2:['2.1 Creating and dropping a database','2.2 Creating and dropping tables','2.3 Data types','2.4 Constraints','2.5 Foreign keys','2.6 Altering tables'],
+  sub3:['3.1 INSERT','3.2 SELECT','3.3 WHERE','3.4 UPDATE','3.5 DELETE'],
+  sub4:['4.1 DISTINCT','4.2 ORDER BY','4.3 LIMIT and OFFSET','4.4 Filtering operators','4.5 Aggregate functions','4.6 Grouping','4.7 Subqueries'],
+  themeSystem:'Theme: system', themeLight:'Theme: light', themeDark:'Theme: dark',
+  heroEyebrow:'Based on metanit.com/sql/postgresql',
+  heroH1:'Chapters 2–4, one shared database',
+  heroLead:'Defining data structure, working with data, and querying it — using one shared two-table schema, live SQL examples, and a 36-question quiz at the end.',
+  ctaPrimary:'Start with chapter 2', ctaGhost:'Jump to the quiz',
+  schemaTitle:'The sample schema',
+  schemaDesc:'Every example on this site uses the same company database with two tables.',
+  ch2Title:'Chapter 2. Defining data structure',
+  ch2Desc:'How to shape the storage itself: databases, tables, column types, constraints, and links between tables.',
+  ch3Title:'Chapter 3. Working with data',
+  ch3Desc:'Once the structure is ready — add, read, filter, change, and delete rows. All examples use the employees table from the home page.',
+  ch4Title:'Chapter 4. Queries',
+  ch4Desc:'From basic selection to sorting, row ranges, aggregate functions, grouping, and subqueries — all on the same employees and departments schema.',
+  quizTitle:'Chapters 2–4 quiz',
+  quizDesc:'36 questions based on the material above. Each answer is checked instantly, with a short explanation.',
+  quizIntro:'Ready to check how well you know the data structure topics, INSERT / SELECT / WHERE / UPDATE / DELETE, and the chapter 4 query topics?',
+  quizBeginBtn:'Start the quiz',
+  bestScoreLabel:'Best score', of:'/',
+  quizPosLabel:'Question', correctWord:'correct',
+  nextBtn:'Next question →', showResultBtn:'Show result →', retryBtn:'Try again',
+  msgPerfect:'Every answer correct — chapters 2–4 are solid.',
+  msgGood:'Good result, a couple of spots worth revisiting.',
+  msgRetry:'Worth rereading the sections above and trying again.',
+  footer:'A small site based on the "Defining data structure", "Working with data", and "Queries" chapters of the PostgreSQL guide on metanit.com. A learning example, not official documentation.',
+  ch2Topics:[
+    {kicker:'2.1', title:'Creating and dropping a database', blocks:[
+      {p:'A database is the top level of storage: tables, schemas, and other objects live inside it. It is created and removed with <strong>CREATE DATABASE</strong> and <strong>DROP DATABASE</strong>, usually run as a user with permission to create databases.'},
+      {pre:'<span class="kw">CREATE DATABASE</span> company;\n\n<span class="cm">-- completely removes the database and all data in it</span>\n<span class="kw">DROP DATABASE</span> company;'},
+      {note:'warn', text:'DROP DATABASE is irreversible and asks for no confirmation — worth checking beforehand that the current connection isn\'t to that very database.'}
+    ]},
+    {kicker:'2.2', title:'Creating and dropping tables', blocks:[
+      {p:'A table is described with <strong>CREATE TABLE</strong>: a name and a list of columns with types. Our schema is exactly that: departments and employees.'},
+      {pre:'<span class="kw">CREATE TABLE</span> departments (\n    id   serial <span class="kw">PRIMARY KEY</span>,\n    name varchar(50) <span class="kw">NOT NULL</span>\n);\n\n<span class="kw">CREATE TABLE</span> employees (\n    id            serial <span class="kw">PRIMARY KEY</span>,\n    name          varchar(50) <span class="kw">NOT NULL</span>,\n    age           integer,\n    salary        numeric(10,2),\n    department_id integer <span class="kw">REFERENCES</span> departments(id),\n    hire_date     date\n);\n\n<span class="kw">DROP TABLE</span> employees;'},
+      {p:'DROP TABLE removes the table structure along with its data — unlike DELETE, which only clears rows (section 3.5).'}
+    ]},
+    {kicker:'2.3', title:'Data types in PostgreSQL', blocks:[
+      {p:'Every column has a type that limits what can be stored in it. Below are the types the sample schema uses, plus a few other common ones.'},
+      {table:{head:['Type','Stores','Example'], rows:[
+        ['integer','a whole number','35'],
+        ['serial','an auto-incrementing integer, usually for id','1, 2, 3…'],
+        ['numeric(p,s)','an exact number with p significant digits and s after the decimal point','numeric(10,2) → 90000.00'],
+        ['varchar(n)','a variable-length string, up to n characters','varchar(50)'],
+        ['text','a string with no length limit','—'],
+        ['boolean','true / false','true'],
+        ['date','a calendar date','2019-05-12']
+      ]}},
+      {note:'info', text:'For money, numeric is the usual choice rather than real/double precision — those store approximate values and aren\'t suited to exact amounts.'}
+    ]},
+    {kicker:'2.4', title:'Column and table constraints', blocks:[
+      {p:'Constraints stop "bad" data from ever being written to a table.'},
+      {pre:'<span class="kw">CREATE TABLE</span> employees (\n    id     serial <span class="kw">PRIMARY KEY</span>,\n    name   varchar(50) <span class="kw">NOT NULL</span>,\n    email  varchar(80) <span class="kw">UNIQUE</span>,\n    age    integer <span class="kw">CHECK</span> (age &gt;= 18),\n    salary numeric(10,2) <span class="kw">DEFAULT</span> 0\n);'},
+      {table:{head:['Constraint','Meaning'], rows:[
+        ['NOT NULL','a value is required'],
+        ['UNIQUE','values in the column cannot repeat'],
+        ['PRIMARY KEY','NOT NULL + UNIQUE, uniquely identifies a row'],
+        ['CHECK (condition)','the value must satisfy the condition'],
+        ['DEFAULT value','used when no value is given on INSERT']
+      ]}}
+    ]},
+    {kicker:'2.5', title:'Foreign keys', blocks:[
+      {p:'A foreign key (<strong>FOREIGN KEY</strong>) links a column in one table to the primary-key column of another — that\'s exactly how employees.department_id references departments.id in our schema.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees\n<span class="kw">ADD CONSTRAINT</span> fk_department\n<span class="kw">FOREIGN KEY</span> (department_id) <span class="kw">REFERENCES</span> departments(id)\n<span class="kw">ON DELETE</span> <span class="kw">CASCADE</span>;'},
+      {p:'ON DELETE CASCADE means: deleting a department automatically deletes all employees in it too. Without this option, PostgreSQL by default simply blocks deleting a department while anything still references it.'}
+    ]},
+    {kicker:'2.6', title:'Altering tables', blocks:[
+      {p:'ALTER TABLE changes a table that already exists: adding or dropping columns, changing a type or a name.'},
+      {pre:'<span class="kw">ALTER TABLE</span> employees <span class="kw">ADD COLUMN</span> email varchar(80);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">DROP COLUMN</span> email;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">ALTER COLUMN</span> salary <span class="kw">TYPE</span> numeric(12,2);\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME COLUMN</span> name <span class="kw">TO</span> full_name;\n<span class="kw">ALTER TABLE</span> employees <span class="kw">RENAME TO</span> staff;'}
+    ]}
+  ],
+  ch3Topics:[
+    {kicker:'3.1', title:'Adding data. The INSERT command', blocks:[
+      {p:'INSERT INTO ... VALUES adds one or several new rows. Columns left unspecified get their default value, or NULL.'},
+      {pre:'<span class="kw">INSERT INTO</span> employees (name, age, salary, department_id, hire_date)\n<span class="kw">VALUES</span> (<span class="str">\'Oleg Smirnov\'</span>, 25, 60000, 2, <span class="str">\'2022-01-15\'</span>);\n\n<span class="cm">-- several rows at once</span>\n<span class="kw">INSERT INTO</span> departments (name)\n<span class="kw">VALUES</span> (<span class="str">\'IT\'</span>), (<span class="str">\'Sales\'</span>), (<span class="str">\'Marketing\'</span>);'}
+    ]},
+    {kicker:'3.2', title:'Reading data. The SELECT command', blocks:[
+      {p:'SELECT reads rows. A star returns every column, but real code usually lists the columns it actually needs.'},
+      {pre:'<span class="kw">SELECT</span> * <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees;'},
+      {table:{head:['name','salary'], rows:[['Ivan Ivanov','90000.00'],['Petr Petrov','75000.00'],['Anna Sidorova','110000.00'],['Maria Kuznetsova','68000.00'],['Oleg Smirnov','60000.00']]}}
+    ]},
+    {kicker:'3.3', title:'Filtering. WHERE', blocks:[
+      {p:'WHERE keeps only the rows that satisfy a condition. Conditions combine with AND/OR, and there are operators for ranges and pattern matching.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; 70000 <span class="kw">AND</span> department_id = 1;\n\n<span class="cm">-- a range</span>\n<span class="kw">SELECT</span> name, age <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> age <span class="kw">BETWEEN</span> 25 <span class="kw">AND</span> 35;\n\n<span class="cm">-- a name pattern</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">\'Ivanov%\'</span>;'},
+      {table:{head:['Operator','Meaning'], rows:[
+        ['=, &lt;&gt;, &gt;, &lt;, &gt;=, &lt;=','comparison'],
+        ['BETWEEN a AND b','value within the range [a, b]'],
+        ['IN (a, b, c)','value is one of the listed ones'],
+        ["LIKE 'pattern%'",'matches a mask (% stands for any characters)'],
+        ['IS NULL / IS NOT NULL','checks for a missing value']
+      ]}}
+    ]},
+    {kicker:'3.4', title:'Updating data. The UPDATE command', blocks:[
+      {p:'UPDATE ... SET ... WHERE changes values in rows that already exist.'},
+      {pre:'<span class="kw">UPDATE</span> employees\n<span class="kw">SET</span> salary = salary * 1.1\n<span class="kw">WHERE</span> department_id = 2;'},
+      {note:'warn', text:'Forget WHERE, and UPDATE applies to every row in the table — one of the most common beginner mistakes.'}
+    ]},
+    {kicker:'3.5', title:'Removing data. The DELETE command', blocks:[
+      {p:'DELETE FROM ... WHERE removes rows, not the table itself — the structure and columns stay in place.'},
+      {pre:'<span class="kw">DELETE FROM</span> employees\n<span class="kw">WHERE</span> id = 5;\n\n<span class="cm">-- without WHERE, this deletes every row in the table</span>\n<span class="kw">DELETE FROM</span> employees;'},
+      {p:'The difference from chapter 2: DROP TABLE destroys the table itself, DELETE removes only its contents.'}
+    ]}
+  ],
+  ch4Topics:[
+    {kicker:'4.1', title:'DISTINCT. Selecting unique values', blocks:[
+      {p:'A plain SELECT returns every row, including repeated values in individual columns. DISTINCT removes duplicates across the listed columns.'},
+      {pre:'<span class="kw">SELECT DISTINCT</span> department_id <span class="kw">FROM</span> employees;'},
+      {note:'info', text:'PostgreSQL has an extension to the standard — DISTINCT ON (column), which, combined with ORDER BY, keeps only the first row in each group.'}
+    ]},
+    {kicker:'4.2', title:'ORDER BY. Sorting', blocks:[
+      {p:'ORDER BY sorts the result by one or more columns: ASC for ascending (the default), DESC for descending.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span>;\n\n<span class="cm">-- sort by two columns at once</span>\n<span class="kw">SELECT</span> name, department_id, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> department_id <span class="kw">ASC</span>, salary <span class="kw">DESC</span>;'},
+      {note:'info', text:'PostgreSQL also lets you control where NULLs land: ORDER BY salary DESC NULLS LAST.'}
+    ]},
+    {kicker:'4.3', title:'Getting a range of rows. LIMIT and OFFSET', blocks:[
+      {p:'LIMIT caps the number of rows returned, OFFSET skips the first N rows of the result — together they\'re handy for pagination.'},
+      {pre:'<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> salary <span class="kw">DESC</span> <span class="kw">LIMIT</span> 3;\n\n<span class="cm">-- a second "page" of 2 rows</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">ORDER BY</span> id <span class="kw">LIMIT</span> 2 <span class="kw">OFFSET</span> 2;'},
+      {note:'warn', text:'Without ORDER BY, row order isn\'t guaranteed, so LIMIT/OFFSET with no sort can return different rows on different runs.'}
+    ]},
+    {kicker:'4.4', title:'Filtering operators', blocks:[
+      {p:'Beyond the plain comparisons and BETWEEN/LIKE from chapter 3, PostgreSQL supports a few more handy condition operators.'},
+      {pre:'<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (1, 2);\n\n<span class="cm">-- case-insensitive search</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> name <span class="kw">ILIKE</span> <span class="str">\'%ivanov%\'</span>;'},
+      {table:{head:['Operator','Meaning'], rows:[
+        ['IN (a, b, c)','value is one of the listed ones'],
+        ['NOT IN (a, b, c)','value is not in the list'],
+        ['ILIKE','like LIKE, but case-insensitive (PostgreSQL-specific)'],
+        ['IS DISTINCT FROM','a comparison that works correctly with NULL too']
+      ]}}
+    ]},
+    {kicker:'4.5', title:'Aggregate functions', blocks:[
+      {p:'Aggregate functions collapse a set of rows into a single value: a count, a sum, an average, a minimum, a maximum.'},
+      {pre:'<span class="kw">SELECT COUNT</span>(*) <span class="kw">FROM</span> employees;\n\n<span class="kw">SELECT AVG</span>(salary), <span class="kw">MIN</span>(salary), <span class="kw">MAX</span>(salary)\n<span class="kw">FROM</span> employees;'},
+      {table:{head:['Function','Returns'], rows:[
+        ['COUNT(*)','the number of rows, including ones with NULLs'],
+        ['COUNT(column)','the number of rows where the column is not NULL'],
+        ['SUM(column)','the sum of the values'],
+        ['AVG(column)','the average value'],
+        ['MIN / MAX(column)','the smallest / largest value']
+      ]}}
+    ]},
+    {kicker:'4.6', title:'Grouping', blocks:[
+      {p:'GROUP BY splits rows into groups by the value of one or more columns; aggregate functions in the SELECT list are then computed separately for each group. HAVING filters the groups themselves — unlike WHERE, which filters rows before grouping happens.'},
+      {pre:'<span class="kw">SELECT</span> department_id, <span class="kw">COUNT</span>(*), <span class="kw">AVG</span>(salary)\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id;\n\n<span class="cm">-- only departments with an average salary above 70000</span>\n<span class="kw">SELECT</span> department_id, <span class="kw">AVG</span>(salary) <span class="kw">AS</span> avg_salary\n<span class="kw">FROM</span> employees\n<span class="kw">GROUP BY</span> department_id\n<span class="kw">HAVING</span> <span class="kw">AVG</span>(salary) &gt; 70000;'},
+      {note:'warn', text:'Any SELECT column that isn\'t wrapped in an aggregate function must also appear in GROUP BY.'}
+    ]},
+    {kicker:'4.7', title:'Subqueries', blocks:[
+      {p:'A subquery is a SELECT nested inside another query: in a WHERE clause, in a FROM clause, or even in the list of columns.'},
+      {pre:'<span class="cm">-- employees earning more than the company average</span>\n<span class="kw">SELECT</span> name, salary <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> salary &gt; (<span class="kw">SELECT AVG</span>(salary) <span class="kw">FROM</span> employees);\n\n<span class="cm">-- a subquery in place of a value list for IN</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> employees\n<span class="kw">WHERE</span> department_id <span class="kw">IN</span> (<span class="kw">SELECT</span> id <span class="kw">FROM</span> departments <span class="kw">WHERE</span> name = <span class="str">\'IT\'</span>);\n\n<span class="cm">-- EXISTS: is there at least one matching employee</span>\n<span class="kw">SELECT</span> name <span class="kw">FROM</span> departments d\n<span class="kw">WHERE EXISTS</span> (<span class="kw">SELECT</span> 1 <span class="kw">FROM</span> employees e <span class="kw">WHERE</span> e.department_id = d.id);'},
+      {note:'info', text:'EXISTS is often more efficient than IN with a large subquery: PostgreSQL stops as soon as it finds the first match.'}
+    ]}
+  ],
+  quizQuestions:[
+    {q:"Which command creates a new database?", opts:["CREATE DATABASE company;","NEW DATABASE company;","CREATE SCHEMA company;","MAKE DATABASE company;"], correct:0, exp:"A database is created with the CREATE DATABASE command."},
+    {q:"How does DROP TABLE differ from DELETE FROM?", opts:["No difference, they're synonyms","DROP TABLE removes the table itself, DELETE removes only rows","DELETE removes the entire table","DROP TABLE only works in pgAdmin"], correct:1, exp:"DROP TABLE removes the table's structure along with its data, while DELETE only clears rows, leaving the table in place."},
+    {q:"Which type best fits storing a salary of 90000.00?", opts:["boolean","varchar(10)","numeric(10,2)","date"], correct:2, exp:"numeric(p,s) stores exact numbers with a set number of decimal places — exactly what money needs."},
+    {q:"What does the serial type do for an id column?", opts:["Makes the column text","Automatically generates the next integer value","Blocks inserting rows","Stores the row's creation date"], correct:1, exp:"serial is an auto-incrementing integer — values are generated automatically on INSERT."},
+    {code:"CREATE TABLE employees (\n  email varchar(80) UNIQUE\n);", q:"What does the UNIQUE constraint on the email column guarantee?", opts:["Email is required (not NULL)","Email cannot repeat across different rows","Email is automatically lowercased","Email must be shorter than 80 characters"], correct:1, exp:"UNIQUE forbids repeated values in a column, but it doesn't forbid NULL."},
+    {q:"Which constraint uniquely identifies a row and disallows NULL?", opts:["CHECK","DEFAULT","PRIMARY KEY","FOREIGN KEY"], correct:2, exp:"PRIMARY KEY is NOT NULL + UNIQUE combined — it uniquely identifies a table's row."},
+    {code:"ALTER TABLE employees\nADD CONSTRAINT fk_department\nFOREIGN KEY (department_id) REFERENCES departments(id)\nON DELETE CASCADE;", q:"What happens when a department is deleted from departments, given ON DELETE CASCADE?", opts:["Nothing, the department won't be deleted","The department is deleted, employees are left with empty department_id","The department is deleted along with all its employees","An error is raised"], correct:2, exp:"ON DELETE CASCADE propagates the delete to related rows — that department's employees get deleted too."},
+    {q:"Which command adds a new column to an existing table?", opts:["ADD COLUMN email TO employees;","ALTER TABLE employees ADD COLUMN email varchar(80);","UPDATE employees ADD email varchar(80);","INSERT COLUMN email INTO employees;"], correct:1, exp:"Changing an existing table's structure is done with ALTER TABLE ... ADD COLUMN."},
+    {code:"INSERT INTO employees (name, age, salary)\nVALUES ('Oleg Smirnov', 25, 60000);", q:"What happens to department_id and hire_date if they're left out of this INSERT?", opts:["The INSERT always fails","They get their default value, or NULL","No row is created, but there's no error either","They automatically copy the previous row's values"], correct:1, exp:"Columns left out of an INSERT get their DEFAULT value, or NULL if there is none (as long as the column allows NULL)."},
+    {q:"What does SELECT * FROM employees; return?", opts:["Only employee names","The number of rows in the table","Every column of every row in the employees table","An error, because columns must always be listed"], correct:2, exp:"The star means \"every column\", and FROM employees with no WHERE means every row."},
+    {code:"SELECT name, age FROM employees\nWHERE age BETWEEN 25 AND 35;", q:"If the employees' ages are 35, 28, 42, 31, 25, who ends up in the result?", opts:["Only 35 and 25 (the boundaries)","35, 28, 31, 25 — everyone except 42","Only 28 and 31","All five employees"], correct:1, exp:"BETWEEN 25 AND 35 includes both boundaries, so 35, 28, 31 and 25 all qualify — 42 does not."},
+    {q:"Which WHERE operator is used for pattern matching, like 'Ivanov%'?", opts:["IN","BETWEEN","LIKE","IS NULL"], correct:2, exp:"LIKE matches against a pattern, where % stands in for any sequence of characters."},
+    {code:"UPDATE employees\nSET salary = salary * 1.1;", q:"If only department id = 2 should get a raise, what's missing from this query?", opts:["Nothing, it's correct as is","The SET keyword","A WHERE department_id = 2 condition","A semicolon"], correct:2, exp:"Without WHERE, UPDATE applies to every row in the table — here every employee's salary would rise, not just department 2's."},
+    {q:"What happens when DELETE FROM employees; runs with no WHERE?", opts:["Nothing, PostgreSQL asks for confirmation first","Every row in employees is deleted, but the table itself remains","The entire employees table is deleted","The query fails as a syntax error"], correct:1, exp:"DELETE with no WHERE removes every row, but the table's structure (columns, constraints) is preserved."},
+    {q:"What's wrong with this query: DELETE employees WHERE id = 5;", opts:["Nothing, it's correct","It's missing the FROM keyword: it should be DELETE FROM employees","WHERE can't be used with DELETE","id can't be compared with ="], correct:1, exp:"DELETE syntax requires FROM: DELETE FROM employees WHERE id = 5;"},
+    {q:"What does SELECT DISTINCT department_id FROM employees; do?", opts:["Returns every row unchanged","Returns only the unique department_id values","Removes rows with NULL","Sorts the table by department_id"], correct:1, exp:"DISTINCT removes repeated values in the listed column, keeping only the unique ones."},
+    {q:"How do you sort employees by salary from highest to lowest?", opts:["ORDER BY salary","ORDER BY salary ASC","ORDER BY salary DESC","SORT BY salary DESC"], correct:2, exp:"DESC sorts in descending order; ASC (or leaving it out) sorts ascending."},
+    {code:"SELECT name, salary FROM employees\nORDER BY salary DESC LIMIT 3;", q:"With 5 employees in the table, how many rows does this query return?", opts:["5","3","2","All of them, LIMIT has no effect here"], correct:1, exp:"LIMIT 3 caps the result at three rows — the three highest-paid employees."},
+    {q:"What does OFFSET 2 do when used together with LIMIT?", opts:["Skips the first 2 rows of the result","Returns only 2 rows","Deletes 2 rows from the table","Sorts the result by 2 columns"], correct:0, exp:"OFFSET skips the given number of result rows before LIMIT is applied."},
+    {q:"How does ILIKE differ from LIKE?", opts:["No difference, they're full synonyms","ILIKE ignores letter case when matching the pattern","ILIKE only works with numeric columns","ILIKE is a deprecated alias for LIKE that's being removed"], correct:1, exp:"ILIKE is a PostgreSQL-specific operator like LIKE, but case-insensitive."},
+    {code:"SELECT COUNT(*) FROM employees;", q:"What does this query return?", opts:["The sum of all salaries","The number of rows in the employees table","A list of all names","The company's average salary"], correct:1, exp:"COUNT(*) counts the rows that made it into the result — here, every row of the employees table."},
+    {code:"SELECT department_id, AVG(salary)\nFROM employees\nGROUP BY department_id\nHAVING AVG(salary) > 70000;", q:"What does HAVING do in this query?", opts:["Filters individual rows before grouping","Filters the already-grouped results by the average value","Sorts the resulting groups","Fully replaces WHERE everywhere"], correct:1, exp:"HAVING is applied after GROUP BY and filters the groups themselves by the aggregate result — here, keeping only departments with an average salary above 70000."},
+    {code:"SELECT name, salary FROM employees\nWHERE salary > (SELECT AVG(salary) FROM employees);", q:"What does this query with a subquery return?", opts:["Employees earning more than the company average","The company's average salary","Every employee, with no exceptions","The highest-paid employee"], correct:0, exp:"The subquery in parentheses computes the average salary, and the outer query selects employees whose salary exceeds it."},
+    {q:"What happens when DROP DATABASE company; runs, assuming the right permissions?", opts:["It only clears all the tables, the database itself remains","It permanently deletes the company database along with all its data","It just renames the database","It blocks access to the database without deleting it"], correct:1, exp:"DROP DATABASE removes the entire database irreversibly."},
+    {q:"How does text differ from varchar(50)?", opts:["text is faster","text has no length limit, while varchar(50) is capped at 50 characters","text can only store numbers","There's no difference, they're synonyms"], correct:1, exp:"text stores a string with no length limit, while varchar(n) is capped at n characters."},
+    {code:"CREATE TABLE employees (\n  age integer CHECK (age >= 18)\n);", q:"What happens if you try to insert an employee with age = 16?", opts:["The row is inserted, but age becomes NULL","PostgreSQL raises an error and the INSERT fails","age is automatically changed to 18","Nothing, CHECK isn't enforced on INSERT"], correct:1, exp:"If a CHECK condition fails, PostgreSQL raises an error and the row isn't inserted."},
+    {q:"What happens if the salary numeric(10,2) DEFAULT 0 column is left out of an INSERT?", opts:["The INSERT fails","salary gets the value 0","salary is always NULL, DEFAULT has no effect","No row is created"], correct:1, exp:"When no value is given, the column takes on its DEFAULT value."},
+    {q:"With a FOREIGN KEY defined without ON DELETE CASCADE, what happens if you try to delete a referenced department?", opts:["The department is deleted and employees' department_id becomes NULL","PostgreSQL blocks the deletion by default while references exist","The employees are deleted automatically along with the department","Nothing happens, the department stays but the employees are removed"], correct:1, exp:"Without CASCADE, PostgreSQL's default behavior is to block deletion while anything still references the row."},
+    {code:"ALTER TABLE employees RENAME COLUMN name TO full_name;", q:"What does this command do?", opts:["Drops the name column","Renames the name column to full_name","Changes the type of the name column","Keeps name and creates a new full_name column"], correct:1, exp:"RENAME COLUMN only changes the column's name — its data stays the same."},
+    {code:"INSERT INTO departments (name)\nVALUES ('IT'), ('Sales'), ('Marketing');", q:"How many new rows does this query add?", opts:["One","Three","None, the syntax is invalid","It depends on the number of columns"], correct:1, exp:"Three comma-separated value groups after VALUES means three rows are inserted."},
+    {q:"How do you select employees with no hire_date recorded?", opts:["WHERE hire_date = NULL","WHERE hire_date IS NULL","WHERE hire_date = ''","WHERE NOT hire_date"], correct:1, exp:"NULL can't be compared with =; IS NULL is the correct way to test for it."},
+    {q:"How does DISTINCT ON (department_id) differ from plain DISTINCT department_id?", opts:["No difference","Combined with ORDER BY, DISTINCT ON keeps only the first row per group in that order, rather than just removing duplicate values","DISTINCT ON is faster without ORDER BY","DISTINCT ON is a typo — PostgreSQL has no such thing"], correct:1, exp:"DISTINCT ON is a PostgreSQL-specific feature that returns the whole first row (by ORDER BY) of each group."},
+    {q:"When is IS DISTINCT FROM more useful than the usual <>?", opts:["When comparing two numbers","When the compared values might include NULL and you need a correct comparison","When comparing strings case-insensitively","It's always equivalent to <>"], correct:1, exp:"IS DISTINCT FROM treats NULL as an ordinary value, so it behaves safely in comparisons that involve NULL."},
+    {code:"SELECT SUM(salary), AVG(salary) FROM employees\nWHERE department_id = 2;", q:"What does this query compute?", opts:["The sum and average salary of employees in department 2 only","The sum and average across the whole company","The number of employees in department 2","The highest and lowest salary"], correct:0, exp:"WHERE department_id = 2 keeps only that department's rows, so SUM and AVG are computed over just those."},
+    {code:"SELECT department_id, name, AVG(salary)\nFROM employees\nGROUP BY department_id;", q:"Why does this query raise an error?", opts:["AVG can't be used with GROUP BY","department_id can't be grouped by","The name column isn't wrapped in an aggregate function and isn't listed in GROUP BY","It wouldn't raise an error"], correct:2, exp:"Every non-aggregated column in SELECT must appear in GROUP BY — here name is missing."},
+    {q:"How do you find departments with no employees at all?", opts:["WHERE EXISTS (...)","WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.department_id = d.id)","WHERE department_id IS NULL","ORDER BY employees DESC"], correct:1, exp:"NOT EXISTS finds departments where the subquery returns no matching employee rows at all."}
+  ]
+}
+};
+
+/* =========================================================
+   RENDERING
+   ========================================================= */
+var currentLang = 'ru';
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderBlocks(blocks){
+  return blocks.map(function(b){
+    if(b.p) return '<p>'+b.p+'</p>';
+    if(b.pre) return '<pre>'+b.pre+'</pre>';
+    if(b.table){
+      var head = '<tr>'+b.table.head.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr>';
+      var rows = b.table.rows.map(function(r){ return '<tr>'+r.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>'; }).join('');
+      return '<div class="data-table-wrap"><table class="data">'+head+rows+'</table></div>';
+    }
+    if(b.note){
+      var icon = b.note === 'warn' ? '⚠' : '💡';
+      return '<div class="note '+(b.note==='warn'?'warn':'')+'"><span class="ic">'+icon+'</span><span>'+b.text+'</span></div>';
+    }
+    return '';
+  }).join('');
+}
+
+function renderTopics(list){
+  return list.map(function(t){
+    return '<article class="topic" id="'+ (t._anchorId) +'">'+
+      '<div class="topic-kicker">'+t.kicker+'</div>'+
+      '<h3>'+t.title+'</h3>'+
+      renderBlocks(t.blocks)+
+      '</article>';
+  }).join('');
+}
+
+var CH2_ANCHORS = ['ch2-1','ch2-2','ch2-3','ch2-4','ch2-5','ch2-6'];
+var CH3_ANCHORS = ['ch3-1','ch3-2','ch3-3','ch3-4','ch3-5'];
+var CH4_ANCHORS = ['ch4-1','ch4-2','ch4-3','ch4-4','ch4-5','ch4-6','ch4-7'];
+
+function applyLanguage(lang){
+  currentLang = lang;
+  var d = DATA[lang];
+
+  document.getElementById('brandSubtitle').textContent = d.brandSubtitle;
+  document.getElementById('navHome').textContent = d.navHome;
+  document.getElementById('navCh2').textContent = d.navCh2;
+  document.getElementById('navCh3').textContent = d.navCh3;
+  document.getElementById('navCh4').textContent = d.navCh4;
+  document.getElementById('navQuiz').textContent = d.navQuiz;
+
+  var sub2 = document.getElementById('subNav2');
+  sub2.innerHTML = '';
+  d.sub2.forEach(function(label, i){
+    var a = document.createElement('a');
+    a.href = '#'; a.dataset.view='ch2'; a.dataset.anchor = CH2_ANCHORS[i];
+    a.textContent = label;
+    a.addEventListener('click', function(e){ e.preventDefault(); showView('ch2', CH2_ANCHORS[i]); });
+    sub2.appendChild(a);
+  });
+
+  var sub3 = document.getElementById('subNav3');
+  sub3.innerHTML = '';
+  d.sub3.forEach(function(label, i){
+    var a = document.createElement('a');
+    a.href = '#'; a.dataset.view='ch3'; a.dataset.anchor = CH3_ANCHORS[i];
+    a.textContent = label;
+    a.addEventListener('click', function(e){ e.preventDefault(); showView('ch3', CH3_ANCHORS[i]); });
+    sub3.appendChild(a);
+  });
+
+  var sub4 = document.getElementById('subNav4');
+  sub4.innerHTML = '';
+  d.sub4.forEach(function(label, i){
+    var a = document.createElement('a');
+    a.href = '#'; a.dataset.view='ch4'; a.dataset.anchor = CH4_ANCHORS[i];
+    a.textContent = label;
+    a.addEventListener('click', function(e){ e.preventDefault(); showView('ch4', CH4_ANCHORS[i]); });
+    sub4.appendChild(a);
+  });
+
+  applyThemeLabel();
+
+  document.getElementById('heroEyebrow').textContent = d.heroEyebrow;
+  document.getElementById('heroH1').textContent = d.heroH1;
+  document.getElementById('heroLead').textContent = d.heroLead;
+  document.getElementById('ctaPrimary').textContent = d.ctaPrimary;
+  document.getElementById('ctaGhost').textContent = d.ctaGhost;
+  document.getElementById('schemaTitle').textContent = d.schemaTitle;
+  document.getElementById('schemaDesc').textContent = d.schemaDesc;
+
+  document.getElementById('ch2Title').textContent = d.ch2Title;
+  document.getElementById('ch2Desc').textContent = d.ch2Desc;
+  document.getElementById('ch3Title').textContent = d.ch3Title;
+  document.getElementById('ch3Desc').textContent = d.ch3Desc;
+  document.getElementById('ch4Title').textContent = d.ch4Title;
+  document.getElementById('ch4Desc').textContent = d.ch4Desc;
+
+  var ch2Pills = document.getElementById('ch2Pills');
+  ch2Pills.innerHTML = d.sub2.map(function(label, i){
+    return '<a class="pill" href="#'+CH2_ANCHORS[i]+'" data-a="'+CH2_ANCHORS[i]+'">'+label+'</a>';
+  }).join('');
+  var ch3Pills = document.getElementById('ch3Pills');
+  ch3Pills.innerHTML = d.sub3.map(function(label, i){
+    return '<a class="pill" href="#'+CH3_ANCHORS[i]+'" data-a="'+CH3_ANCHORS[i]+'">'+label+'</a>';
+  }).join('');
+  var ch4Pills = document.getElementById('ch4Pills');
+  ch4Pills.innerHTML = d.sub4.map(function(label, i){
+    return '<a class="pill" href="#'+CH4_ANCHORS[i]+'" data-a="'+CH4_ANCHORS[i]+'">'+label+'</a>';
+  }).join('');
+  document.querySelectorAll('.pill[data-a]').forEach(function(p){
+    p.addEventListener('click', function(e){
+      e.preventDefault();
+      var el = document.getElementById(p.dataset.a);
+      if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+    });
+  });
+
+  d.ch2Topics.forEach(function(t,i){ t._anchorId = CH2_ANCHORS[i]; });
+  d.ch3Topics.forEach(function(t,i){ t._anchorId = CH3_ANCHORS[i]; });
+  d.ch4Topics.forEach(function(t,i){ t._anchorId = CH4_ANCHORS[i]; });
+  document.getElementById('ch2Topics').innerHTML = renderTopics(d.ch2Topics);
+  document.getElementById('ch3Topics').innerHTML = renderTopics(d.ch3Topics);
+  document.getElementById('ch4Topics').innerHTML = renderTopics(d.ch4Topics);
+
+  document.getElementById('quizTitle').textContent = d.quizTitle;
+  document.getElementById('quizDesc').textContent = d.quizDesc;
+  document.getElementById('quizIntro').textContent = d.quizIntro;
+  document.getElementById('quizBeginBtn').textContent = d.quizBeginBtn;
+  document.getElementById('quizRetryBtn').textContent = d.retryBtn;
+
+  document.getElementById('footerNote').textContent = d.footer;
+
+  var labels = {home:d.navHome, ch2:d.navCh2, ch3:d.navCh3, ch4:d.navCh4, quiz:d.navQuiz};
+  Array.prototype.forEach.call(mobileTabs.children, function(btn){
+    btn.textContent = labels[btn.dataset.view];
+  });
+
+  updateBestScoreLine();
+  refreshQuizView();
+
+  document.querySelectorAll('.lang-btn, .mobile-lang button').forEach(function(b){
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  document.documentElement.lang = (lang === 'kk' ? 'kk' : lang === 'en' ? 'en' : 'ru');
+
+  try{ localStorage.setItem('pg-lang', lang); }catch(e){}
+}
+
+/* ---- theme ---- */
+var savedTheme = 'system';
+function applyThemeLabel(){
+  var d = DATA[currentLang];
+  var label = savedTheme === 'light' ? d.themeLight : savedTheme === 'dark' ? d.themeDark : d.themeSystem;
+  document.getElementById('themeLabel').textContent = label;
+}
+function applyTheme(mode){
+  savedTheme = mode;
+  if(mode === 'light'){ document.documentElement.setAttribute('data-theme','light'); }
+  else if(mode === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); }
+  else { document.documentElement.removeAttribute('data-theme'); }
+  applyThemeLabel();
+}
+try{
+  var t = localStorage.getItem('pg-theme');
+  if(t){ savedTheme = t; }
+}catch(e){}
+applyTheme(savedTheme);
+document.getElementById('themeToggle').addEventListener('click', function(){
+  var order = ['system','light','dark'];
+  var idx = (order.indexOf(savedTheme) + 1) % order.length;
+  applyTheme(order[idx]);
+  try{ localStorage.setItem('pg-theme', savedTheme); }catch(e){}
+});
+
+/* ---- view switching ---- */
+var views = ['home','ch2','ch3','ch4','quiz'];
+var navBtns = document.querySelectorAll('.nav-btn[data-view]');
+var gotoBtns = document.querySelectorAll('[data-goto]');
+var mobileTabs = document.getElementById('mobileTabs');
+
+views.forEach(function(v){
+  var b = document.createElement('button');
+  b.dataset.view = v;
+  b.addEventListener('click', function(){ showView(v); });
+  mobileTabs.appendChild(b);
+});
+
+function showView(view, anchor){
+  views.forEach(function(v){
+    document.getElementById('view-'+v).classList.toggle('active', v === view);
+  });
+  navBtns.forEach(function(b){ b.classList.toggle('active', b.dataset.view === view); });
+  Array.prototype.forEach.call(mobileTabs.children, function(b){ b.classList.toggle('active', b.dataset.view === view); });
+  window.scrollTo({top:0});
+  if(anchor){
+    requestAnimationFrame(function(){
+      var el = document.getElementById(anchor);
+      if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+    });
+  }
+}
+
+navBtns.forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
+gotoBtns.forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.goto); }); });
+
+/* ---- language switch UI ---- */
+var LANGS = [['ru','РУС'],['kk','ҚАЗ'],['en','ENG']];
+var langSwitch = document.getElementById('langSwitch');
+var mobileLang = document.getElementById('mobileLang');
+LANGS.forEach(function(pair){
+  var b1 = document.createElement('button');
+  b1.className = 'lang-btn'; b1.textContent = pair[1]; b1.dataset.lang = pair[0];
+  b1.addEventListener('click', function(){ applyLanguage(pair[0]); });
+  langSwitch.appendChild(b1);
+
+  var b2 = document.createElement('button');
+  b2.textContent = pair[1]; b2.dataset.lang = pair[0];
+  b2.addEventListener('click', function(){ applyLanguage(pair[0]); });
+  mobileLang.appendChild(b2);
+});
+
+/* =========================================================
+   QUIZ
+   ========================================================= */
+var quizState = {
+  order: [], current: 0, score: 0, answered: false, chosenIndex: null, phase: 'start',
+  reset: function(){ this.order = []; this.current = 0; this.score = 0; this.answered = false; this.chosenIndex = null; this.phase = 'start'; }
+};
+
+function getBest(lang){
+  try{
+    var v = localStorage.getItem('pg-quiz-best-'+lang);
+    return v ? parseInt(v,10) : null;
+  }catch(e){ return null; }
+}
+function setBest(lang, n){
+  try{
+    var cur = getBest(lang);
+    if(cur === null || n > cur){ localStorage.setItem('pg-quiz-best-'+lang, String(n)); }
+  }catch(e){}
+}
+function refreshQuizView(){
+  var playEl = document.getElementById('quizPlay');
+  var resultEl = document.getElementById('quizResult');
+  var playVisible = playEl.style.display !== 'none';
+  var resultVisible = resultEl.style.display !== 'none';
+
+  if(playVisible && quizState.order.length){
+    // re-render the same question (same position/score) in the new language
+    renderQuestion();
+  } else if(resultVisible){
+    var d = DATA[currentLang];
+    var total = d.quizQuestions.length;
+    document.getElementById('quizFinalScore').textContent = quizState.score + ' ' + d.of + ' ' + total;
+    var pct = quizState.score/total;
+    var msg = pct === 1 ? d.msgPerfect : pct >= 0.7 ? d.msgGood : d.msgRetry;
+    document.getElementById('quizFinalMsg').textContent = msg;
+  }
+  // otherwise the start screen is showing — its texts are already refreshed above
+}
+
+function updateBestScoreLine(){
+  var d = DATA[currentLang];
+  var total = d.quizQuestions.length;
+  var b = getBest(currentLang);
+  document.getElementById('bestScoreLine').textContent = (b !== null) ? (d.bestScoreLabel + ': ' + b + ' ' + d.of + ' ' + total) : '';
+}
+
+function shuffledIndices(n){
+  var arr = [];
+  for(var i=0;i<n;i++){ arr.push(i); }
+  for(var j=arr.length-1;j>0;j--){
+    var k = Math.floor(Math.random()*(j+1));
+    var tmp = arr[j]; arr[j]=arr[k]; arr[k]=tmp;
+  }
+  return arr;
+}
+
+function startQuiz(){
+  var d = DATA[currentLang];
+  quizState.order = shuffledIndices(d.quizQuestions.length);
+  quizState.current = 0; quizState.score = 0; quizState.phase = 'playing';
+  document.getElementById('quizStart').style.display = 'none';
+  document.getElementById('quizResult').style.display = 'none';
+  document.getElementById('quizPlay').style.display = 'block';
+  renderQuestion();
+}
+
+function renderQuestion(){
+  var d = DATA[currentLang];
+  quizState.answered = false;
+  var qi = d.quizQuestions[quizState.order[quizState.current]];
+  var total = d.quizQuestions.length;
+
+  document.getElementById('quizPos').textContent = d.quizPosLabel + ' ' + (quizState.current+1) + ' ' + d.of + ' ' + total;
+  document.getElementById('quizScoreLive').textContent = quizState.score + ' ' + d.correctWord;
+  document.getElementById('quizProgressBar').style.width = Math.round((quizState.current/total)*100) + '%';
+  document.getElementById('quizQuestion').textContent = qi.q;
+
+  var codeEl = document.getElementById('quizCode');
+  if(qi.code){ codeEl.style.display = 'block'; codeEl.textContent = qi.code; }
+  else { codeEl.style.display = 'none'; codeEl.textContent = ''; }
+
+  var optsWrap = document.getElementById('quizOptions');
+  optsWrap.innerHTML = '';
+  var displayOrder = shuffledIndices(qi.opts.length);
+  currentOptionButtons = {};
+  displayOrder.forEach(function(origIdx){
+    var b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = qi.opts[origIdx];
+    b.addEventListener('click', function(){ selectOption(origIdx, b); });
+    currentOptionButtons[origIdx] = b;
+    optsWrap.appendChild(b);
+  });
+
+  var exp = document.getElementById('quizExplain');
+  exp.classList.remove('show'); exp.textContent = '';
+  document.getElementById('quizNextBtn').classList.remove('show');
+}
+
+function selectOption(idx, btnEl){
+  if(quizState.answered) return;
+  quizState.answered = true;
+  var d = DATA[currentLang];
+  var qi = d.quizQuestions[quizState.order[quizState.current]];
+  var allOpts = document.querySelectorAll('#quizOptions .opt');
+  allOpts.forEach(function(o){ o.disabled = true; });
+  if(idx === qi.correct){
+    quizState.score++;
+    btnEl.classList.add('correct');
+  } else {
+    btnEl.classList.add('wrong');
+    currentOptionButtons[qi.correct].classList.add('correct');
+  }
+  var exp = document.getElementById('quizExplain');
+  exp.textContent = qi.exp;
+  exp.classList.add('show');
+  document.getElementById('quizScoreLive').textContent = quizState.score + ' ' + d.correctWord;
+
+  var nextBtn = document.getElementById('quizNextBtn');
+  nextBtn.textContent = (quizState.current === d.quizQuestions.length - 1) ? d.showResultBtn : d.nextBtn;
+  nextBtn.classList.add('show');
+}
+
+function nextQuestion(){
+  var d = DATA[currentLang];
+  quizState.current++;
+  if(quizState.current >= d.quizQuestions.length){ finishQuiz(); }
+  else { renderQuestion(); }
+}
+
+function finishQuiz(){
+  var d = DATA[currentLang];
+  document.getElementById('quizPlay').style.display = 'none';
+  document.getElementById('quizResult').style.display = 'block';
+  var total = d.quizQuestions.length;
+  document.getElementById('quizFinalScore').textContent = quizState.score + ' ' + d.of + ' ' + total;
+  var pct = quizState.score/total;
+  var msg = pct === 1 ? d.msgPerfect : pct >= 0.7 ? d.msgGood : d.msgRetry;
+  document.getElementById('quizFinalMsg').textContent = msg;
+  setBest(currentLang, quizState.score);
+  updateBestScoreLine();
+}
+
+document.getElementById('quizBeginBtn').addEventListener('click', startQuiz);
+document.getElementById('quizRetryBtn').addEventListener('click', function(){
+  document.getElementById('quizResult').style.display = 'none';
+  document.getElementById('quizStart').style.display = 'block';
+});
+document.getElementById('quizNextBtn').addEventListener('click', nextQuestion);
+
+/* ---- init ---- */
+var initialLang = 'ru';
+try{
+  var savedLang = localStorage.getItem('pg-lang');
+  if(savedLang && DATA[savedLang]){ initialLang = savedLang; }
+}catch(e){}
+applyLanguage(initialLang);
+
+})();
+</script>
+</body>
+</html>
